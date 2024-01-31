@@ -1,0 +1,44 @@
+topics:
+  # All real vehicle related topics go here
+  real:
+    # Actuators this node publishes to (real vehicle)
+    accelerator: /vehicle/throttle_cmd
+    brakes: /vehicle/brake_cmd
+    steering: /vehicle/steering_cmd
+    enable: /vehicle/enable
+    disable: /vehicle/disable
+    gear: /vehicle/gear_cmd
+    # Sensors this node subscribes to (published by vehicle)
+    report_accelerator: /vehicle/throttle_report
+    report_brakes: /vehicle/brake_report
+    report_steering: /vehicle/steering_report
+    report_gear: /vehicle/gear_report
+
+  # All simulator related topics go here
+  simulator:
+    # Actuators this node publishes to (simulator)
+    accelerator: /simulator/throttle_cmd
+    brakes: /simulator/brake_cmd
+    steering: /simulator/steering_cmd
+    enable: /simulator/enable
+    disable: /simulator/disable
+    gear: /simulator/gear_cmd
+    # Sensors this node subscribes to (published by simulator)
+    report_accelerator: /simulator/throttle_report
+    report_brakes: /simulator/brake_report
+    report_steering: /simulator/steering_report
+    report_gear: /simulator/gear_report
+
+  # Status messages this node publishes - usually no changes needed here
+  status:
+    is_initialized: /actor/status/is_initialized
+    is_simulated: /actor/status/is_simulated
+    is_autonomous: /actor/status/is_autonomous
+    is_tele_operated: /actor/status/is_tele_operated
+    is_enabled: /actor/status/is_enabled
+    steering_angle: /actor/status/steering_angle
+    brake_percent: /actor/status/brake_percent
+    accelerator_percent: /actor/status/accelerator_percent
+    speed: /actor/status/speed
+    speed_limit: /actor/status/speed_limit
+    gear: /actor/status/gear
