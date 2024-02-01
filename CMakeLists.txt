@@ -54,11 +54,10 @@ catkin_python_setup()
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  ActorStatus.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -75,10 +74,12 @@ catkin_python_setup()
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   dbw_polaris_msgs#   geometry_msgs#   std_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  # dbw_polaris_msgs
+  # geometry_msgs
+  std_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -112,7 +113,7 @@ catkin_python_setup()
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES actor_ros
- CATKIN_DEPENDS dbw_polaris_msgs geometry_msgs roscpp rospy std_msgs message_generation cv_bridge dynamic_reconfigure sensor_msgs
+ CATKIN_DEPENDS dbw_polaris_msgs geometry_msgs roscpp rospy std_msgs message_generation message_runtime cv_bridge dynamic_reconfigure sensor_msgs
 #  DEPENDS system_lib
 )
 
