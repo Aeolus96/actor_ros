@@ -29,6 +29,12 @@ topics:
     report_steering: /simulator/steering_report
     report_gear: /simulator/gear_report
 
+  # All vehicle control related topics go here (publish messages here to control ACTor)
+  control:
+    enable: /actor/enable
+    disable: /actor/disable
+    drive: /actor/cmd_vel
+
   # Status messages this node publishes - usually no changes needed here
   status:
     is_initialized: /actor/status/is_initialized

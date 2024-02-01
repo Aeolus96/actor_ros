@@ -1,8 +1,8 @@
 # ROS Python API
 import rospy
 
-# Drive By Wire Messages (Developed by DataSoeed) (https://bitbucket.org/DataspeedInc/dbw_polaris_ros/src/master/)
-from dbw_polaris_msgs.msg import BrakeCmd, Gear, GearCmd, SteeringCmd, ThrottleCmd
+# Math Library
+import math
 
 # Logging Library (pip install loguru) - logging made simple
 from loguru import logger
@@ -17,26 +17,42 @@ import yaml
 import rospkg
 
 # ROS Messages
-from std_msgs.msg import Bool, Empty, Float32, Int32, String, UInt8
+from std_msgs.msg import Bool, Empty, Float32, Float64, Int32, String, UInt8
+from geometry_msgs.msg import Twist
+
+# Drive By Wire Messages (Developed by DataSoeed) (https://bitbucket.org/DataspeedInc/dbw_polaris_ros/src/master/)
+from dbw_polaris_msgs.msg import (
+    BrakeCmd,
+    BrakeReport,
+    Gear,
+    GearCmd,
+    GearReport,
+    SteeringCmd,
+    SteeringReport,
+    ThrottleCmd,
+    ThrottleReport,
+)
 
 # Dynamic Reconfigure
 # from dynamic_reconfigure.server import Server
 
 
 class Actor:
-    def __init__(self):
+    def __init__(self, is_simulated=False):
         """Initialize the ACTor instance"""
 
         logger.info("ACTor initializing...")
 
-        # Define attributes
-        self.is_simulated = False
+        # Define status attributes
+        self.is_simulated = True if is_simulated else False
+        # simulation mode is enabled only via the 'is_simulated' argument at instantiation
         self.is_autonomous = False
         self.is_tele_operated = False
         self.is_enabled = False
         self.steering_angle = 0
         self.brake_percent = 0
         self.accelerator_percent = 0
+        self.speed = 0
         self.speed_limit = 5  # mph
         self.gear
 
@@ -58,6 +74,7 @@ class Actor:
         self.pub_enable_cmd = rospy.Publisher(self.topics.enable, Empty, queue_size=1)
         self.pub_disable_cmd = rospy.Publisher(self.topics.disable, Empty, queue_size=1)
         # Status publishers
+        # TODO: Consider making custom message for status
         self.pub_stat_is_initialized = rospy.Publisher(self.topics.status.is_initialized, Bool, queue_size=1)
         self.pub_stat_is_simulated = rospy.Publisher(self.topics.status.is_simulated, Bool, queue_size=1)
         self.pub_stat_is_autonomous = rospy.Publisher(self.topics.status.is_autonomous, Bool, queue_size=1)
@@ -73,6 +90,13 @@ class Actor:
         self.pub_stat_gear = rospy.Publisher(self.topics.status.gear, String, queue_size=1)
 
         # Define subscribers
+        rospy.Subscriber(self.topics.report_accelerator, ThrottleReport, self.report_accelerator_callback)
+        rospy.Subscriber(self.topics.report_brake, BrakeReport, self.report_brake_callback)
+        rospy.Subscriber(self.topics.report_steering, SteeringReport, self.report_steering_callback)
+        rospy.Subscriber(self.topics.report_gear, GearReport, self.report_gear_callback)
+        rospy.Subscriber(self.topics.control.enable, Empty, self.enable_callback)
+        rospy.Subscriber(self.topics.control.disable, Empty, self.disable_callback)
+        rospy.Subscriber(self.topics.control.cmd_vel, Twist, self.drive_twist_callback)
 
     def load_topics(self):
         """Set topics based on simulation or not"""
@@ -153,3 +177,57 @@ class Actor:
         # TODO: Implement gear shifting and feedback based speed safety
         self.msg_gear.gear = gear
         self.msg_shift_gear.cmd = self.msg_gear
+
+    def report_accelerator_callback(self, ThrottleReport_msg):
+        """Report accelerator percent"""
+        # Get pedal position as a percentage
+        self.accelerator_percent = ThrottleReport_msg.pedal_output
+
+    def report_brakes_callback(self, BrakeReport_msg):
+        """Report brake pedal percent"""
+        # Get pedal position as a percentage
+        self.brake_percent = BrakeReport_msg.torque_output
+        # TODO: check if in percent or Nm while in percent mode
+        # Max torque is 8kNm
+
+    def report_steering_callback(self, SteeringReport_msg):
+        """Report steering angle and vehicle speed"""
+        # Get steering wheel angle and convert to degrees then to drive wheel angle in 17:1 ratio
+        steering_wheel_angle = SteeringReport_msg.steering_wheel_angle * 180 / math.pi
+        road_angle = steering_wheel_angle / 17
+        self.steering_angle = round(road_angle, 2)  # Calling road_angle as 'steering_angle' for the sake of simplicity
+        # Get speed in m/s and convert to mph
+        self.speed = SteeringReport_msg.speed * 2.23694
+
+    def report_gear_callback(self, GearReport_msg):
+        """Report gear"""
+        self.gear = GearReport_msg.state
+        # TODO: Verify is state is numeric or Gear msg type (add .gear)
+
+    def enable(self):
+        """Enable vehicle"""
+        self.is_enabled = True
+        msg = Empty()
+        self.pub_enable_cmd.publish(msg)
+
+    def disable(self):
+        """Disable vehicle"""
+        self.is_enabled = False
+        self.zero_dbw_messages()
+        # NOTE: Disable is not an emergency stop. It simply disables any ROS control over the vehicle.
+        msg = Empty()
+        self.pub_disable_cmd.publish(msg)
+
+    def enable_callback(self, Empty_msg):
+        """Enable vehicle from callback"""
+        self.enable()
+
+    def disable_callback(self, Empty_msg):
+        """Disable vehicle from callback"""
+        self.disable()
+
+    def drive_twist_callback(self, Twist_msg):
+        """Drive vehicle from twist callback"""
+        # TODO: Implement throttle, brake, and steering commands
+        # TODO: Implement ULC command mode
+        pass
