@@ -4,9 +4,6 @@ import rospy
 # Math Library
 import math
 
-# Logging Library (pip install loguru) - logging made simple
-from loguru import logger
-
 # Munching Library (pip install munch) - dictionaries but attribute-style access
 from munch import munchify
 
@@ -41,9 +38,10 @@ class Actor:
     def __init__(self, is_simulated=False):
         """Initialize the ACTor instance"""
 
-        logger.info("ACTor initializing...")
+        rospy.loginfo("ACTor initializing...")
 
         # Define status attributes
+        self.is_initialized = False
         self.is_simulated = True if is_simulated else False
         # simulation mode is enabled only via the 'is_simulated' argument at instantiation
         self.is_autonomous = False
@@ -54,12 +52,12 @@ class Actor:
         self.accelerator_percent = 0
         self.speed = 0
         self.speed_limit = 5  # mph
-        self.gear
+        self.gear = None
 
         # Define topics
         self.load_topics()
 
-        # Define messages
+        # Define message types
         self.msg_accelerator = ThrottleCmd()
         self.msg_brakes = BrakeCmd()
         self.msg_steering = SteeringCmd()
@@ -74,17 +72,14 @@ class Actor:
         self.pub_enable_cmd = rospy.Publisher(self.topics.enable, Empty, queue_size=1)
         self.pub_disable_cmd = rospy.Publisher(self.topics.disable, Empty, queue_size=1)
         # Status publishers
-        # TODO: Consider making custom message for status
         self.pub_stat_is_initialized = rospy.Publisher(self.topics.status.is_initialized, Bool, queue_size=1)
         self.pub_stat_is_simulated = rospy.Publisher(self.topics.status.is_simulated, Bool, queue_size=1)
         self.pub_stat_is_autonomous = rospy.Publisher(self.topics.status.is_autonomous, Bool, queue_size=1)
         self.pub_stat_is_tele_operated = rospy.Publisher(self.topics.status.is_tele_operated, Bool, queue_size=1)
         self.pub_stat_is_enabled = rospy.Publisher(self.topics.status.is_enabled, Bool, queue_size=1)
-        # TODO: Consider using wheel angle directly
         self.pub_stat_steering_angle = rospy.Publisher(self.topics.status.steering_angle, Float32, queue_size=1)
         self.pub_stat_brake_percent = rospy.Publisher(self.topics.status.brake_percent, UInt8, queue_size=1)
         self.pub_stat_accelerator_percent = rospy.Publisher(self.topics.status.accelerator_percent, UInt8, queue_size=1)
-        # TODO: Consider converting from m/s to mph
         self.pub_stat_speed = rospy.Publisher(self.topics.status.speed, Float32, queue_size=1)
         self.pub_stat_is_speed_limit = rospy.Publisher(self.topics.status.speed_limit, UInt8, queue_size=1)
         self.pub_stat_gear = rospy.Publisher(self.topics.status.gear, String, queue_size=1)
@@ -98,6 +93,10 @@ class Actor:
         rospy.Subscriber(self.topics.control.disable, Empty, self.disable_callback)
         rospy.Subscriber(self.topics.control.cmd_vel, Twist, self.drive_twist_callback)
 
+        # Initializiation complete
+        self.is_initialized = True
+        rospy.loginfo("ACTor initialized!")
+
     def load_topics(self):
         """Set topics based on simulation or not"""
 
@@ -110,22 +109,22 @@ class Actor:
         with open(yaml_file_path, "r") as stream:
             try:
                 yaml_dict = yaml.safe_load(stream)
-            except yaml.YAMLError as exc:
-                print(exc)
 
-        # Munch the dictionary into an attribute-style object
-        config = munchify(yaml_dict)
+                # Munch the dictionary into an attribute-style object
+                config = munchify(yaml_dict)
 
-        # Assign topics as attributes to Actor class
-        if self.is_simulated:
-            self.topics = config.topics.simulator
-        else:
-            self.topics = config.topics.real
+                # Assign topics as attributes to Actor class
+                if self.is_simulated:
+                    self.topics = config.topics.simulator
+                else:
+                    self.topics = config.topics.real
 
-        self.topics.status = config.topics.status
+                self.topics.status = config.topics.status
+                rospy.loginfo(f"Topics loaded successfully from <{yaml_file_path}>")
 
-        print(self.topics.accelerator)
-        print(self.topics.status.steering_angle)
+            except yaml.YAMLError as e:
+                rospy.logerr(e)
+                rospy.signal_shutdown(f"Could not load the topics from <{yaml_file_path}>")
 
     def zero_dbw_messages(self):
         """Set all DBW messages to zero or default values"""
@@ -172,22 +171,17 @@ class Actor:
         # LOW=5
         self.msg_shift_gear.cmd = self.msg_gear
 
-    def shift_gear(self, gear):
-        """Shift gear"""
-        # TODO: Implement gear shifting and feedback based speed safety
-        self.msg_gear.gear = gear
-        self.msg_shift_gear.cmd = self.msg_gear
+        # TODO: Add ULC messages if needed
 
     def report_accelerator_callback(self, ThrottleReport_msg):
         """Report accelerator percent"""
         # Get pedal position as a percentage
-        self.accelerator_percent = ThrottleReport_msg.pedal_output
+        self.accelerator_percent = ThrottleReport_msg.pedal_output * 100
 
     def report_brakes_callback(self, BrakeReport_msg):
         """Report brake pedal percent"""
         # Get pedal position as a percentage
-        self.brake_percent = BrakeReport_msg.torque_output
-        # TODO: check if in percent or Nm while in percent mode
+        self.brake_percent = BrakeReport_msg.torque_output * 100
         # Max torque is 8kNm
 
     def report_steering_callback(self, SteeringReport_msg):
@@ -202,7 +196,7 @@ class Actor:
     def report_gear_callback(self, GearReport_msg):
         """Report gear"""
         self.gear = GearReport_msg.state
-        # TODO: Verify is state is numeric or Gear msg type (add .gear)
+        # TODO: Verify if state is numeric or Gear msg type (add .gear)
 
     def enable(self):
         """Enable vehicle"""
@@ -231,3 +225,17 @@ class Actor:
         # TODO: Implement throttle, brake, and steering commands
         # TODO: Implement ULC command mode
         pass
+
+    def shift_gear(self, gear):
+        """Shift gear"""
+        # TODO: Implement gear shifting and feedback based speed safety
+        self.msg_gear.gear = gear
+        self.msg_shift_gear.cmd = self.msg_gear
+
+
+# TODO: Add Controller classes?
+#           - Proportional Speed Controller
+#           - Shift Gear Checker
+#           - Come to stop and reverse?
+#           - Brake Controller
+#           - Proportional Steering Controller
