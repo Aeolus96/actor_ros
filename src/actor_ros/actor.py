@@ -1,21 +1,12 @@
-# ROS Python API
-import rospy
-
 # Math Library
 import math
 
-# Munching Library (pip install munch) - dictionaries but attribute-style access
-from munch import munchify
+# ROS Package API (pip install rospkg) - ROS package information access
+import rospkg
+import rospy  # ROS Python API
 
 # YAML Library (pip install PyYAML) - YAML parsing
 import yaml
-
-# ROS Package API (pip install rospkg) - ROS package information access
-import rospkg
-
-# ROS Messages
-from std_msgs.msg import Bool, Empty, Float32, Float64, Int32, String, UInt8
-from geometry_msgs.msg import Twist
 
 # Drive By Wire Messages (Developed by DataSoeed) (https://bitbucket.org/DataspeedInc/dbw_polaris_ros/src/master/)
 from dbw_polaris_msgs.msg import (
@@ -29,6 +20,13 @@ from dbw_polaris_msgs.msg import (
     ThrottleCmd,
     ThrottleReport,
 )
+from geometry_msgs.msg import Twist
+
+# Munching Library (pip install munch) - dictionaries but attribute-style access
+from munch import munchify
+
+# ROS Messages
+from std_msgs.msg import Bool, Empty, Float32, Float64, Int32, String, UInt8
 
 # Dynamic Reconfigure
 # from dynamic_reconfigure.server import Server
@@ -69,6 +67,7 @@ class Actor:
         self.pub_accelerator = rospy.Publisher(self.topics.accelerator, ThrottleCmd, queue_size=1)
         self.pub_brakes = rospy.Publisher(self.topics.brakes, BrakeCmd, queue_size=1)
         self.pub_steering = rospy.Publisher(self.topics.steering, SteeringCmd, queue_size=1)
+        self.pub_gear = rospy.Publisher(self.topics.gear, GearCmd, queue_size=1)
         self.pub_enable_cmd = rospy.Publisher(self.topics.enable, Empty, queue_size=1)
         self.pub_disable_cmd = rospy.Publisher(self.topics.disable, Empty, queue_size=1)
         # Status publishers
@@ -85,13 +84,13 @@ class Actor:
         self.pub_stat_gear = rospy.Publisher(self.topics.status.gear, String, queue_size=1)
 
         # Define subscribers
-        rospy.Subscriber(self.topics.report_accelerator, ThrottleReport, self.report_accelerator_callback)
-        rospy.Subscriber(self.topics.report_brake, BrakeReport, self.report_brake_callback)
-        rospy.Subscriber(self.topics.report_steering, SteeringReport, self.report_steering_callback)
-        rospy.Subscriber(self.topics.report_gear, GearReport, self.report_gear_callback)
-        rospy.Subscriber(self.topics.control.enable, Empty, self.enable_callback)
-        rospy.Subscriber(self.topics.control.disable, Empty, self.disable_callback)
-        rospy.Subscriber(self.topics.control.cmd_vel, Twist, self.drive_twist_callback)
+        rospy.Subscriber(self.topics.report_accelerator, ThrottleReport, self.report_accelerator_callback, queue_size=1)
+        rospy.Subscriber(self.topics.report_brake, BrakeReport, self.report_brake_callback, queue_size=1)
+        rospy.Subscriber(self.topics.report_steering, SteeringReport, self.report_steering_callback, queue_size=1)
+        rospy.Subscriber(self.topics.report_gear, GearReport, self.report_gear_callback, queue_size=1)
+        rospy.Subscriber(self.topics.control.enable, Empty, self.enable_callback, queue_size=1)
+        rospy.Subscriber(self.topics.control.disable, Empty, self.disable_callback, queue_size=1)
+        rospy.Subscriber(self.topics.control.cmd_vel, Twist, self.drive_twist_callback, queue_size=1)
 
         # Initializiation complete
         self.is_initialized = True
@@ -163,15 +162,9 @@ class Actor:
 
         # Gear shift
         self.msg_gear.gear = Gear.NONE
-        # NONE=0
-        # PARK=1
-        # REVERSE=2
-        # NEUTRAL=3
-        # DRIVE=4
-        # LOW=5
-        self.msg_shift_gear.cmd = self.msg_gear
+        self.msg_shift_gear.cmd = self.msg_gear  # need to do it this way because cmd is gear message type
 
-        # TODO: Add ULC messages if needed
+        # Add ULC messages if needed, not required for now (all functionality works without ULC messages)
 
     def report_accelerator_callback(self, ThrottleReport_msg):
         """Report accelerator percent"""
@@ -199,16 +192,19 @@ class Actor:
         # TODO: Verify if state is numeric or Gear msg type (add .gear)
 
     def enable(self):
-        """Enable vehicle"""
+        """Enable vehicle control using ROS messages"""
         self.is_enabled = True
         msg = Empty()
         self.pub_enable_cmd.publish(msg)
 
     def disable(self):
-        """Disable vehicle"""
+        """Disable vehicle control using ROS messages"""
         self.is_enabled = False
         self.zero_dbw_messages()
-        # NOTE: Disable is not an emergency stop. It simply disables any ROS control over the vehicle.
+        # NOTE: Disable is NOT AN EMERGENCY STOP. It simply disables any ROS control over the vehicle.
+
+        # TODO: Verify if this topic actually exists. If not simply return without publishing a message
+        # since not publishing the enable message automatically times out control in the dbw hardware after 200ms
         msg = Empty()
         self.pub_disable_cmd.publish(msg)
 
@@ -223,19 +219,60 @@ class Actor:
     def drive_twist_callback(self, Twist_msg):
         """Drive vehicle from twist callback"""
         # TODO: Implement throttle, brake, and steering commands
-        # TODO: Implement ULC command mode
+
+        # TODO: Shift to neutral and then reverse if negative speed
+
+        # TODO: Shift to neutral and then drive if positive speed
+
+        # TODO: Stop vehicle and shift to park if no input for 10 seconds
+
         pass
 
-    def shift_gear(self, gear):
-        """Shift gear"""
-        # TODO: Implement gear shifting and feedback based speed safety
-        self.msg_gear.gear = gear
-        self.msg_shift_gear.cmd = self.msg_gear
+    # TODO: Test if this works with ROS
+    def shift_gear(self, gear_input: str, second_try=False):
+        """Shifts gear using string input"""
+
+        gear_input = gear_input.upper()
+
+        gear_dict = {
+            "NONE": 0,
+            "PARK": 1,
+            "REVERSE": 2,
+            "NEUTRAL": 3,
+            "DRIVE": 4,
+            "LOW": 5,
+        }  # Only used for internal error checking for this method
+
+        # Error checking
+        if gear_input not in gear_dict:
+            rospy.logerr(f"Invalid gear: {gear_input}")
+            return False
+
+        if self.gear == gear_dict[gear_input]:
+            rospy.loginfo(f"Gear is already {gear_input}")
+            return True
+
+        if abs(self.speed) > 1:
+            if second_try:
+                rospy.logerr("Cannot shift gears while vehicle is moving")
+                return False
+
+            rospy.logwarn("Cannot shift gear when speed is not near zero. Waiting 2 seconds before retrying...")
+            rospy.sleep(2)
+            return self.shift_gear(gear_input, second_try=True)
+
+        # Shift gear
+        self.msg_gear.gear = gear_dict[gear_input]  # Set gear message
+        self.msg_shift_gear.cmd = self.msg_gear  # Make gear shift command
+        self.pub_gear.publish(self.msg_shift_gear)
+        rospy.loginfo(f"Gear shifted to {gear_input}")
+        rospy.sleep(0.5)  # Wait for gear to shift to happen in the hardware
+
+        return True
 
 
 # TODO: Add Controller classes?
 #           - Proportional Speed Controller
-#           - Shift Gear Checker
 #           - Come to stop and reverse?
 #           - Brake Controller
 #           - Proportional Steering Controller
