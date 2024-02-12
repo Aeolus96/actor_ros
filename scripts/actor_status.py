@@ -27,6 +27,7 @@ def report_accelerator_callback(ThrottleReport_msg):
 
     # Get pedal position as a percentage
     accelerator_percent = ThrottleReport_msg.pedal_output * 100
+    # TODO: 20 - 80 percent range
 
 
 def report_brakes_callback(BrakeReport_msg):
@@ -34,8 +35,8 @@ def report_brakes_callback(BrakeReport_msg):
     global brake_percent
 
     # Get pedal position as a percentage
-    brake_percent = BrakeReport_msg.torque_output * 100
-    # Max torque is 8kNm
+    brake_percent = BrakeReport_msg.torque_input * 100
+    # TODO: Max torque is 8kNm. Compare input/output?
 
 
 def report_steering_callback(SteeringReport_msg):
@@ -45,7 +46,7 @@ def report_steering_callback(SteeringReport_msg):
     # Get steering wheel angle and convert to degrees then to road angle in 17:1 ratio
     steering_wheel_angle = SteeringReport_msg.steering_wheel_angle * 180 / math.pi  # Convert radians to degrees
     road_angle = round((steering_wheel_angle / 17), 2)  # Convert steering wheel angle to drive wheel angle
-
+    # TODO: Verify value physically
     # Get speed in m/s and convert to mph
     speed = SteeringReport_msg.speed * 2.23694  # Convert from m/s to mph
 
@@ -54,10 +55,18 @@ def report_gear_callback(GearReport_msg):
     """Report gear"""
     global gear
 
-    # Get gear state
-    gear = GearReport_msg.state
-    # TODO: Verify if state is numeric or Gear msg type (add .gear)
-    # If numeric, then use a dict to display string
+    gear_dict = {
+        0: "NONE",
+        1: "PARK",
+        2: "REVERSE",
+        3: "NEUTRAL",
+        4: "DRIVE",
+        5: "LOW",
+    }
+
+    # Get gear number from GearReport
+    gear_number = GearReport_msg.state.gear
+    gear = gear_dict[gear_number]  # Convert gear number to string
 
 
 def drive_twist_callback(Twist_msg):
@@ -81,7 +90,7 @@ def enable_callback(Enable_msg):
     """Report if ROS control over vehicle is enabled from callback"""
     global enabled
 
-    # TODO: Verify if Bool or Empty
+    # TODO: Verify if /vehicle/enable is Bool, /vehicle/dbw_enable is Empty
     # Get enable state
     enabled = Enable_msg.data
 
@@ -90,7 +99,7 @@ def publish_status(TimerEvent):
     """Create and publish status message. Rate controlled by ropy.Timer"""
     global accelerator_percent, brake_percent, road_angle, speed, speed_limit, gear
     global requested_speed, requested_road_angle, enabled
-    
+
     # Create and publish status message
     status = ActorStatus()
 
@@ -134,13 +143,14 @@ requested_speed = 0.0
 requested_road_angle = 0.0
 enabled = False
 
+
 # Get one time parameters and topics
 is_simulated = rospy.get_param("is_simulated")
 topic_status = rospy.get_param("status")
 speed_limit = rospy.get_param("speed_limit", -1.0)  # incase control node's dynamic reconfigure is not loaded yet
 
 # Define subscribers
-rospy.Subscriber(rospy.get_param("enable"), Bool, enable_callback, queue_size=1)
+rospy.Subscriber(rospy.get_param("enable"), Bool, enable_callback, queue_size=1) # TODO: Verify
 rospy.Subscriber(rospy.get_param("report_accelerator"), ThrottleReport, report_accelerator_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("report_brakes"), BrakeReport, report_brakes_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("report_steering"), SteeringReport, report_steering_callback, queue_size=1)
