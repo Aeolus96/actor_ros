@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.11
+#!/usr/bin/env python3
 
 import math  # Math Library
 
@@ -88,7 +88,9 @@ def enable_callback(Enable_msg):
 
 def publish_status(TimerEvent):
     """Create and publish status message. Rate controlled by ropy.Timer"""
-
+    global accelerator_percent, brake_percent, road_angle, speed, speed_limit, gear
+    global requested_speed, requested_road_angle, enabled
+    
     # Create and publish status message
     status = ActorStatus()
 
@@ -100,7 +102,7 @@ def publish_status(TimerEvent):
     # Vehicle States
     status.accelerator_percent = accelerator_percent
     status.brake_percent = brake_percent
-    status.steering_angle = road_angle
+    status.road_angle = road_angle
     status.gear = gear
     status.speed = speed
     status.speed_limit = speed_limit
@@ -116,9 +118,21 @@ def publish_status(TimerEvent):
 # End of Callbacks ------------------------------------------------------------
 
 # Start of ROS node -----------------------------------------------------------
-
 rospy.init_node("actor_status")
 rospy.sleep(2)  # Sleep for 2 seconds before starting
+
+# Initialize variables
+global accelerator_percent, brake_percent, road_angle, speed, speed_limit, gear
+global requested_speed, requested_road_angle, enabled
+accelerator_percent = 0.0
+brake_percent = 0.0
+road_angle = 0.0
+speed = 0.0
+speed_limit = -1.0
+gear = "NONE"
+requested_speed = 0.0
+requested_road_angle = 0.0
+enabled = False
 
 # Get one time parameters and topics
 is_simulated = rospy.get_param("is_simulated")
@@ -140,6 +154,9 @@ rate = 100  # Hz
 rospy.Timer(rospy.Duration(1 / rate), publish_status)
 
 rospy.loginfo("actor_status node running.")
-rospy.spin()
+try:
+    rospy.spin()
+except rospy.ROSInterruptException:
+    pass
 
 # End of ROS node -------------------------------------------------------------

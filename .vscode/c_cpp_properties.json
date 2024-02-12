@@ -1,0 +1,30 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/dev/actor_ws/devel/include/**",
+        "/opt/ros/noetic/include/**",
+        "/home/dev/actor_ws/src/avt_vimba_camera/include/**",
+        "/home/dev/actor_ws/src/Python-Workshop/dbw_test_pkg/include/**",
+        "/home/dev/actor_ws/src/decel_test_pkg/include/**",
+        "/home/dev/actor_ws/src/ethz_piksi_ros/libsbp_ros_msgs/include/**",
+        "/home/dev/actor_ws/src/ethz_piksi_ros/piksi_multi_cpp/include/**",
+        "/home/dev/actor_ws/src/reu_lane_follow_pkg/include/**",
+        "/home/dev/actor_ws/src/ethz_piksi_ros/rqt_gps_rtk_plugin/include/**",
+        "/home/dev/actor_ws/src/simple_sim/include/**",
+        "/home/dev/actor_ws/src/tire_detect_test/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
