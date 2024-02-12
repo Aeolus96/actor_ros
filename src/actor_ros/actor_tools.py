@@ -1,12 +1,7 @@
 # Math Library
 import math
 
-# ROS Package API (pip install rospkg) - ROS package information access
-import rospkg
 import rospy  # ROS Python API
-
-# YAML Library (pip install PyYAML) - YAML parsing
-import yaml
 
 # Drive By Wire Messages (Developed by DataSoeed) (https://bitbucket.org/DataspeedInc/dbw_polaris_ros/src/master/)
 from dbw_polaris_msgs.msg import (
@@ -22,23 +17,18 @@ from dbw_polaris_msgs.msg import (
 )
 from geometry_msgs.msg import Twist
 
-# Munching Library (pip install munch) - dictionaries but attribute-style access
-from munch import munchify
-
 # ROS Messages
 from std_msgs.msg import Bool, Empty, Float32, Float64, Int32, String, UInt8
 
-# Dynamic Reconfigure
-# from dynamic_reconfigure.server import Server
 
-
+# Master Class for ACTor Control
 class Actor:
-    def __init__(self, is_simulated=False):
+    def __init__(self, is_simulated=False, topics=None):
         """Initialize the ACTor instance"""
 
         rospy.loginfo("ACTor initializing...")
 
-        # Define status attributes
+        # Define status attributes (meant for internal write and external read only)
         self.is_initialized = False
         self.is_simulated = True if is_simulated else False
         # simulation mode is enabled only via the 'is_simulated' argument at instantiation
@@ -52,8 +42,16 @@ class Actor:
         self.speed_limit = 5  # mph
         self.gear = None
 
-        # Define topics
-        self.load_topics()
+        # Control Requests
+        self.closed_loop_control = True
+        self.requested_speed = 0.0
+        self.requested_road_angle = 0.0
+
+        # Define topics (Munchified dictionary that can be accessed as attribute-style object)
+        if topics is None:
+            rospy.signal_shutdown("Please specify the topics to be used by ACTor")
+
+        self.topics = topics
 
         # Define message types
         self.msg_accelerator = ThrottleCmd()
@@ -70,6 +68,9 @@ class Actor:
         self.pub_gear = rospy.Publisher(self.topics.gear, GearCmd, queue_size=1)
         self.pub_enable_cmd = rospy.Publisher(self.topics.enable, Empty, queue_size=1)
         self.pub_disable_cmd = rospy.Publisher(self.topics.disable, Empty, queue_size=1)
+        # NOTE: DBW's Expected publishing rate <= 50Hz (10ms) with a 10Hz (100ms) timeout
+        # NOTE: This package has closed loop control enabled by default and publishes constantly.
+
         # Status publishers
         self.pub_stat_is_initialized = rospy.Publisher(self.topics.status.is_initialized, Bool, queue_size=1)
         self.pub_stat_is_simulated = rospy.Publisher(self.topics.status.is_simulated, Bool, queue_size=1)
@@ -88,42 +89,15 @@ class Actor:
         rospy.Subscriber(self.topics.report_brake, BrakeReport, self.report_brake_callback, queue_size=1)
         rospy.Subscriber(self.topics.report_steering, SteeringReport, self.report_steering_callback, queue_size=1)
         rospy.Subscriber(self.topics.report_gear, GearReport, self.report_gear_callback, queue_size=1)
-        rospy.Subscriber(self.topics.control.enable, Empty, self.enable_callback, queue_size=1)
-        rospy.Subscriber(self.topics.control.disable, Empty, self.disable_callback, queue_size=1)
+        # NOTE: Enable/Disable is not an EMERGENCY STOP. External control removed because not needed at the moment
+        # NOTE: Simply publishing a twist message automatically enables/disables the vehicle
+        # rospy.Subscriber(self.topics.control.enable, Empty, self.enable_callback, queue_size=1)
+        # rospy.Subscriber(self.topics.control.disable, Empty, self.disable_callback, queue_size=1)
         rospy.Subscriber(self.topics.control.cmd_vel, Twist, self.drive_twist_callback, queue_size=1)
 
         # Initializiation complete
         self.is_initialized = True
         rospy.loginfo("ACTor initialized!")
-
-    def load_topics(self):
-        """Set topics based on simulation or not"""
-
-        # TODO: Test if this works with ROS
-
-        # Get YAML file using rospkg
-        r = rospkg.RosPack()
-        package_directory = r.get_path("actor_ros")
-        yaml_file_path = package_directory + "/cfg/topics.yaml"
-        with open(yaml_file_path, "r") as stream:
-            try:
-                yaml_dict = yaml.safe_load(stream)
-
-                # Munch the dictionary into an attribute-style object
-                config = munchify(yaml_dict)
-
-                # Assign topics as attributes to Actor class
-                if self.is_simulated:
-                    self.topics = config.topics.simulator
-                else:
-                    self.topics = config.topics.real
-
-                self.topics.status = config.topics.status
-                rospy.loginfo(f"Topics loaded successfully from <{yaml_file_path}>")
-
-            except yaml.YAMLError as e:
-                rospy.logerr(e)
-                rospy.signal_shutdown(f"Could not load the topics from <{yaml_file_path}>")
 
     def zero_dbw_messages(self):
         """Set all DBW messages to zero or default values"""
@@ -147,7 +121,7 @@ class Actor:
         self.msg_brakes.count = 0
 
         # Steering
-        self.msg_steering.steering_wheel_angle_cmd = 0.0  # radians
+        self.msg_steering.steering_wheel_angle_cmd = 0.0  # radians (-600deg to 600deg for ACTor)
         # 17:1 steering to road angle ratio and 69 inch Ackerman wheelbase
         self.msg_steering.enable = False  # Enable Steering, required 'True' for control via ROS
         # Do not use these without completely understanding how they work on the hardware level:
@@ -208,16 +182,20 @@ class Actor:
         msg = Empty()
         self.pub_disable_cmd.publish(msg)
 
-    def enable_callback(self, Empty_msg):
-        """Enable vehicle from callback"""
-        self.enable()
+    # def enable_callback(self, Empty_msg):
+    #     """Enable vehicle from callback"""
+    #     self.enable()
 
-    def disable_callback(self, Empty_msg):
-        """Disable vehicle from callback"""
-        self.disable()
+    # def disable_callback(self, Empty_msg):
+    #     """Disable vehicle from callback"""
+    #     self.disable()
 
     def drive_twist_callback(self, Twist_msg):
         """Drive vehicle from twist callback"""
+
+        self.requested_speed = Twist_msg.linear.x
+        self.requested_road_angle = Twist_msg.angular.z
+
         # TODO: Implement throttle, brake, and steering commands
 
         # TODO: Shift to neutral and then reverse if negative speed
@@ -227,6 +205,14 @@ class Actor:
         # TODO: Stop vehicle and shift to park if no input for 10 seconds
 
         pass
+
+    def speed_controller(self, requested_speed):
+        pass
+        # TODO: Add Controller classes?
+        #           - Proportional Speed Controller
+        #           - Come to stop and reverse?
+        #           - Brake Controller
+        #           - Proportional Steering Controller
 
     # TODO: Test if this works with ROS
     def shift_gear(self, gear_input: str, second_try=False):
@@ -269,10 +255,3 @@ class Actor:
         rospy.sleep(0.5)  # Wait for gear to shift to happen in the hardware
 
         return True
-
-
-# TODO: Add Controller classes?
-#           - Proportional Speed Controller
-#           - Come to stop and reverse?
-#           - Brake Controller
-#           - Proportional Steering Controller

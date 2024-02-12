@@ -1,0 +1,21 @@
+# All real vehicle related topics go here
+
+# Actuators this node publishes to (real vehicle)
+accelerator: /vehicle/throttle_cmd
+brakes: /vehicle/brake_cmd
+steering: /vehicle/steering_cmd
+enable: /vehicle/enable
+disable: /vehicle/disable
+gear: /vehicle/gear_cmd
+
+# Sensors this node subscribes to (published by vehicle)
+report_accelerator: /vehicle/throttle_report
+report_brakes: /vehicle/brake_report
+report_steering: /vehicle/steering_report
+report_gear: /vehicle/gear_report
+
+# All vehicle control related topics go here (publish messages here to control ACTor)
+drive: /actor/cmd_vel
+
+# Status messages this node publishes - usually no changes needed here
+status: /actor/status

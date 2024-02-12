@@ -1,0 +1,18 @@
+# All simulator related topics go here
+
+# Actuators this node publishes to (simulator)
+accelerator: /simulator/throttle_cmd
+brakes: /simulator/brake_cmd
+steering: /simulator/steering_cmd
+enable: /simulator/enable
+disable: /simulator/disable
+gear: /simulator/gear_cmd
+# Sensors this node subscribes to (published by simulator)
+report_accelerator: /simulator/throttle_report
+report_brakes: /simulator/brake_report
+report_steering: /simulator/steering_report
+report_gear: /simulator/gear_report
+# All vehicle control related topics go here (publish messages here to control ACTor)
+drive: /actor/cmd_vel
+# Status messages this node publishes - usually no changes needed here
+status: /actor/status

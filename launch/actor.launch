@@ -1,0 +1,34 @@
+<launch>
+    <!-- Input arguments -->
+    <arg name="simulated" default="false" />
+    <arg name="carla" default="false" />
+
+    <!-- Launch groups under the global namespace '/actor' -->
+    <group namespace="/actor">
+
+        <!-- Load Environment related variables -->
+        <group if="${arg simulated}">
+            <!-- Load the Simulation/Carla related YAML file -->
+            <group if="${arg carla}">
+                <rosparam command="load" file="$(find actor_ros)/cfg/topics_carla.yaml" />
+            </group>
+            <group unless="${arg carla}">
+                <rosparam command="load" file="$(find actor_ros)/cfg/topics_simulator.yaml" />
+            </group>
+        </group>
+        <group unless="${arg simulated}">
+            <!-- Load the Real vehicle related YAML file -->
+            <rosparam command="load" file="$(find actor_ros)/cfg/topics_real.yaml" />
+        </group>
+        <!-- .................................................................................. -->
+
+        <!-- Parameter used to determine simulation mode from other nodes -->
+        <param name="is_simulated" value="${arg simulated}" type="bool" />
+        <param name="is_carla" value="${arg carla}" type="bool" />
+
+        <!-- Status node -->
+        <node name="actor_status" pkg="actor_ros" type="actor_status.py" />
+
+    </group>
+
+</launch>

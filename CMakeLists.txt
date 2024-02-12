@@ -54,7 +54,7 @@ catkin_python_setup()
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
+add_message_files(# DIRECTORY msg - Add this if it doesn't find
   FILES
   ActorStatus.msg
 )
@@ -96,10 +96,11 @@ generate_messages(
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-# generate_dynamic_reconfigure_options(
+generate_dynamic_reconfigure_options(
 #   cfg/DynReconf1.cfg
 #   cfg/DynReconf2.cfg
-# )
+  cfg/ActorControl.cfg
+)
 
 ###################################
 ## catkin specific configuration ##

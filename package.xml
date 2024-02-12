@@ -67,8 +67,9 @@
   <exec_depend>rospy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <!-- Add more here as this ROS package is built further -->
+  <build_depend>dynamic_reconfigure</build_depend>
+  <exec_depend>dynamic_reconfigure</exec_depend>
   <depend>cv_bridge</depend>
-  <depend>dynamic_reconfigure</depend>
   <build_depend>message_generation</build_depend>
   <exec_depend>message_runtime</exec_depend>
   <exec_depend>python-rospkg</exec_depend>
