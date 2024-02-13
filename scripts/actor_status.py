@@ -13,7 +13,7 @@ from dbw_polaris_msgs.msg import (
     ThrottleReport,
 )
 from geometry_msgs.msg import Twist  # ROS Messages
-from std_msgs.msg import Bool  # ROS Messages
+from std_msgs.msg import Empty  # ROS Messages
 
 # End of Imports --------------------------------------------------------------
 
@@ -26,8 +26,8 @@ def report_accelerator_callback(ThrottleReport_msg):
     global accelerator_percent
 
     # Get pedal position as a percentage
-    accelerator_percent = ThrottleReport_msg.pedal_output * 100
-    # TODO: 20 - 80 percent range
+    accelerator_percent = round((ThrottleReport_msg.pedal_output * 100), 2)
+    # NOTE: 20 - 80 percent range limited by the sensor
 
 
 def report_brakes_callback(BrakeReport_msg):
@@ -35,8 +35,10 @@ def report_brakes_callback(BrakeReport_msg):
     global brake_percent
 
     # Get pedal position as a percentage
-    brake_percent = BrakeReport_msg.torque_input * 100
-    # TODO: Max torque is 8kNm. Compare input/output?
+    brake_percent = round(((BrakeReport_msg.torque_input / 8000) * 100), 2)
+    # NOTE: Max torque is 8kNm. input is measured in Nm when pedal is pressed.
+
+    # TODO: Verify value physically. This may not be propulated when cmd is provided
 
 
 def report_steering_callback(SteeringReport_msg):
@@ -46,9 +48,10 @@ def report_steering_callback(SteeringReport_msg):
     # Get steering wheel angle and convert to degrees then to road angle in 17:1 ratio
     steering_wheel_angle = SteeringReport_msg.steering_wheel_angle * 180 / math.pi  # Convert radians to degrees
     road_angle = round((steering_wheel_angle / 17), 2)  # Convert steering wheel angle to drive wheel angle
-    # TODO: Verify value physically
     # Get speed in m/s and convert to mph
-    speed = SteeringReport_msg.speed * 2.23694  # Convert from m/s to mph
+    speed = round(SteeringReport_msg.speed * 2.23694, 2)  # Convert from m/s to mph
+
+    # TODO: Verify value physically
 
 
 def report_gear_callback(GearReport_msg):
@@ -90,9 +93,12 @@ def enable_callback(Enable_msg):
     """Report if ROS control over vehicle is enabled from callback"""
     global enabled
 
-    # TODO: Verify if /vehicle/enable is Bool, /vehicle/dbw_enable is Empty
+    # TODO: Verify if /vehicle/enable is Empty
+    # Might need a time check
+
     # Get enable state
-    enabled = Enable_msg.data
+    # enabled = True
+    pass
 
 
 def publish_status(TimerEvent):
@@ -150,7 +156,7 @@ topic_status = rospy.get_param("status")
 speed_limit = rospy.get_param("speed_limit", -1.0)  # incase control node's dynamic reconfigure is not loaded yet
 
 # Define subscribers
-rospy.Subscriber(rospy.get_param("enable"), Bool, enable_callback, queue_size=1) # TODO: Verify
+rospy.Subscriber(rospy.get_param("enable"), Empty, enable_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("report_accelerator"), ThrottleReport, report_accelerator_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("report_brakes"), BrakeReport, report_brakes_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("report_steering"), SteeringReport, report_steering_callback, queue_size=1)

@@ -16,7 +16,7 @@ from dbw_polaris_msgs.msg import (
 )
 from dynamic_reconfigure.server import Server  # ROS Dynamic Reconfigure
 from geometry_msgs.msg import Twist  # ROS Messages
-from std_msgs.msg import Bool, Empty, Float32, Float64, Int32, String, UInt8  # ROS Messages
+from std_msgs.msg import Empty  # ROS Messages
 
 # End of Imports --------------------------------------------------------------
 
@@ -35,8 +35,15 @@ def dyn_rcfg_callback(config, level):
 
 
 def actor_status_callback(ActorStatus_msg):
-    """Get the latest ACTor Status"""
+    """Get the latest ACTor Status message"""
+    global is_simulated, is_autonomous, is_tele_operated
     global accelerator_percent, brake_percent, road_angle, speed, speed_limit, gear
+    global requested_speed, requested_road_angle, is_enabled
+
+    # Get latest status
+    is_simulated = ActorStatus_msg.is_simulated
+    is_autonomous = ActorStatus_msg.is_autonomous
+    is_tele_operated = ActorStatus_msg.is_tele_operated
 
     accelerator_percent = ActorStatus_msg.accelerator_percent
     brake_percent = ActorStatus_msg.brake_percent
@@ -44,6 +51,12 @@ def actor_status_callback(ActorStatus_msg):
     speed = ActorStatus_msg.speed
     speed_limit = ActorStatus_msg.speed_limit
     gear = ActorStatus_msg.gear
+
+    is_enabled = ActorStatus_msg.is_enabled
+
+    # NOTE: not reading these here
+    # requested_speed = ActorStatus_msg.requested_speed
+    # requested_road_angle = ActorStatus_msg.requested_road_angle
 
 
 # End of Callbacks ------------------------------------------------------------
@@ -138,14 +151,13 @@ def zero_dbw_messages():
 
 def enable():
     """Enable vehicle control using ROS messages"""
-    is_enabled = True
     msg = Empty()
     pub_enable_cmd.publish(msg)
 
 
 def drive_twist_callback(Twist_msg):
     """Drive vehicle from twist callback"""
-
+    global requested_speed, requested_road_angle
     requested_speed = Twist_msg.linear.x
     requested_road_angle = Twist_msg.angular.z
 
@@ -175,6 +187,7 @@ def speed_controller(requested_speed):
 # Start of ROS node -----------------------------------------------------------
 
 rospy.init_node("actor_control")
+rospy.loginfo("actor_control node starting.")
 srv = Server(ActorControlConfig, dyn_rcfg_callback)
 
 # Define subscribers
@@ -198,10 +211,7 @@ msg_gear = Gear()
 msg_shift_gear = GearCmd()
 zero_dbw_messages()
 
-
-rospy.loginfo("actor_control node starting.")
 rospy.sleep(5)  # Sleep for 5 seconds before starting anything else
-
 
 rospy.loginfo("actor_control node running.")
 rospy.spin()
