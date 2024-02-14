@@ -31,7 +31,7 @@ from dbw_polaris_msgs.msg import (
     ThrottleReport,
 )
 from geometry_msgs.msg import Twist  # ROS Messages
-from std_msgs.msg import Empty  # ROS Messages
+from std_msgs.msg import Bool  # ROS Messages
 
 # End of Imports --------------------------------------------------------------
 
@@ -107,15 +107,12 @@ def speed_limit_callback(TimerEvent):
     speed_limit = rospy.get_param("speed_limit", -1.0)
 
 
-def enable_callback(Enable_msg):
+def enabled_callback(Enabled_msg):
     """Report if ROS control over vehicle is enabled from callback"""
     global enabled
 
-    # TODO: Verify if /vehicle/enable is Empty
-    # Might need a time check
-
     # Get enable state
-    # enabled = True
+    enabled = Enabled_msg.data
     pass
 
 
@@ -177,7 +174,7 @@ topic_status = rospy.get_param("status")
 speed_limit = rospy.get_param("speed_limit", -1.0)  # incase control node's dynamic reconfigure is not loaded yet
 
 # Define subscribers
-rospy.Subscriber(rospy.get_param("enable"), Empty, enable_callback, queue_size=1)
+rospy.Subscriber(rospy.get_param("enabled"), Bool, enabled_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("report_accelerator"), ThrottleReport, report_accelerator_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("report_brakes"), BrakeReport, report_brakes_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("report_steering"), SteeringReport, report_steering_callback, queue_size=1)

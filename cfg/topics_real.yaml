@@ -13,6 +13,7 @@ report_accelerator: /vehicle/throttle_report
 report_brakes: /vehicle/brake_report
 report_steering: /vehicle/steering_report
 report_gear: /vehicle/gear_report
+enabled: /vehicle/dbw_enabled
 
 # All vehicle control related topics go here (publish messages here to control ACTor)
 drive: /actor/cmd_vel
