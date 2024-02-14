@@ -1,5 +1,21 @@
 #!/usr/bin/env python3
 
+"""
+ROS Node for Controlling Vehicle.
+
+This script is part of a larger ROS-based system for controlling and monitoring a vehicle's behavior.
+
+Dependencies:
+- ROS (Robot Operating System)
+- actor_ros package (for custom ROS messages)
+- dbw_polaris_msgs package (for Drive By Wire messages)
+
+Authors:
+- [Devson Butani] <dbutani@ltu.edu>
+
+License: MIT
+"""
+
 import math  # Math Library
 
 import rospy  # ROS Python API

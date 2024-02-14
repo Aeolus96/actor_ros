@@ -27,8 +27,9 @@
         <param name="is_carla" value="$(arg carla)" />
 
         <!-- Status node NOTE: Remove output="screen" if not needed -->
-        <node name="actor_status" pkg="actor_ros" type="actor_status.py" output="screen" />
+        <node name="actor_status" pkg="actor_ros" type="actor_status.py" output="screen" respawn="true" />
 
+        <!-- .................................................................................. -->
     </group>
 
 </launch>

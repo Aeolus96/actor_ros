@@ -1,5 +1,23 @@
 #!/usr/bin/env python3
 
+"""
+ROS Node for Monitoring Vehicle Status. This is a simple read multiple topics, convert values to human readable units, and publish to a single custom ROS message that is published at 100Hz.
+
+Purpose is to be used in conjunction with the ACTor GUI and other ACTor nodes that can efficiently use a single high speed message with all the information needed for driving the vehicle. This significantly reduces Python processing overhead from each node that needs to read these topics and convert values to human readable units before using them.
+
+This script is part of a larger ROS-based system for controlling and monitoring a vehicle's behavior.
+
+Dependencies:
+- ROS (Robot Operating System)
+- actor_ros package (for custom ROS messages)
+- dbw_polaris_msgs package (for Drive By Wire messages)
+
+Authors:
+- [Devson Butani] <dbutani@ltu.edu>
+
+License: MIT
+"""
+
 import math  # Math Library
 
 import rospy  # ROS Python API
@@ -38,7 +56,7 @@ def report_brakes_callback(BrakeReport_msg):
     brake_percent = round(((BrakeReport_msg.torque_input / 8000) * 100), 2)
     # NOTE: Max torque is 8kNm. input is measured in Nm when pedal is pressed.
 
-    # TODO: Verify value physically. This may not be propulated when cmd is provided
+    # TODO: Verify brake percent when cmd is sent
 
 
 def report_steering_callback(SteeringReport_msg):
@@ -51,7 +69,7 @@ def report_steering_callback(SteeringReport_msg):
     # Get speed in m/s and convert to mph
     speed = round(SteeringReport_msg.speed * 2.23694, 2)  # Convert from m/s to mph
 
-    # TODO: Verify value physically
+    # TODO: Verify steering angle
 
 
 def report_gear_callback(GearReport_msg):
@@ -133,21 +151,24 @@ def publish_status(TimerEvent):
 # End of Callbacks ------------------------------------------------------------
 
 # Start of ROS node -----------------------------------------------------------
-rospy.init_node("actor_status")
+rospy.init_node("actor_status")  # Namespace is set in launch file. '/actor' by default
 rospy.sleep(2)  # Sleep for 2 seconds before starting
 
-# Initialize variables
-global accelerator_percent, brake_percent, road_angle, speed, speed_limit, gear
-global requested_speed, requested_road_angle, enabled
-accelerator_percent = 0.0
-brake_percent = 0.0
-road_angle = 0.0
-speed = 0.0
-speed_limit = -1.0
-gear = "NONE"
-requested_speed = 0.0
-requested_road_angle = 0.0
-enabled = False
+# Initialize global variables in a dictionary
+globals_dict = {
+    "accelerator_percent": 0.0,
+    "brake_percent": 0.0,
+    "road_angle": 0.0,
+    "speed": 0.0,
+    "speed_limit": -1.0,
+    "gear": "NONE",
+    "requested_speed": 0.0,
+    "requested_road_angle": 0.0,
+    "enabled": False,
+}
+
+# Make all variables global
+globals().update(globals_dict)
 
 
 # Get one time parameters and topics
