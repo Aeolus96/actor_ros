@@ -61,11 +61,11 @@ def report_brakes_callback(BrakeReport_msg):
 
 def report_steering_callback(SteeringReport_msg):
     """Report steering angle and vehicle speed"""
-    global road_angle, speed
+    global steering_wheel_angle, road_angle, speed
 
-    # Get steering wheel angle and convert to degrees then to road angle in 17:1 ratio
+    # Get steering wheel angle and convert to degrees then to road angle in 16.2:1 ratio
     steering_wheel_angle = SteeringReport_msg.steering_wheel_angle * 180 / math.pi  # Convert radians to degrees
-    road_angle = round((steering_wheel_angle / 17), 2)  # Convert steering wheel angle to drive wheel angle
+    road_angle = round((steering_wheel_angle / 16.2), 2)  # Convert steering wheel angle to drive wheel angle
     # Get speed in m/s and convert to mph
     speed = round(SteeringReport_msg.speed * 2.23694, 2)  # Convert from m/s to mph
 
@@ -132,6 +132,7 @@ def publish_status(TimerEvent):
     # Vehicle States
     status.accelerator_percent = accelerator_percent
     status.brake_percent = brake_percent
+    status.steering_wheel_angle = steering_wheel_angle
     status.road_angle = road_angle
     status.gear = gear
     status.speed = speed

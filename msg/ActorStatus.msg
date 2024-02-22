@@ -9,6 +9,7 @@ bool is_tele_operated           # Optional Status indicator - set externally
 float32 accelerator_percent     # Percentage of maximum pedal position
 float32 brake_percent           # Percentage of maximum brake torque
 string gear                     # String representation of gear state
+float32 steering_wheel_angle    # Direct steering wheel angle in degrees
 float32 road_angle              # Angle from car centerline to drive wheel vector in degrees
 float32 speed                   # Speed in miles per hour
 

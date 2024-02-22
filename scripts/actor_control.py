@@ -32,6 +32,7 @@ from dbw_polaris_msgs.msg import (
 )
 from dynamic_reconfigure.server import Server  # ROS Dynamic Reconfigure
 from geometry_msgs.msg import Twist  # ROS Messages
+from simple_pid import PID  # PID Controller Library
 from std_msgs.msg import Empty  # ROS Messages
 
 # End of Imports --------------------------------------------------------------
@@ -42,37 +43,46 @@ from std_msgs.msg import Empty  # ROS Messages
 
 def dyn_rcfg_callback(config, level):
     """Dynamic Reconfigure Callback"""
+    global config_, speed_limit
 
-    speed_limit = config["speed_limit"]
+    # Update config object
+    config_ = config
 
-    rospy.set_param("speed_limit", speed_limit)
-    # matrix_width = config["matrix_width"]
+    # Get speed limit and update ROS parameter accordingly
+    if speed_limit != config_.speed_limit:  # Only update if changed, rosparam is slow relatively
+        speed_limit = config_.speed_limit
+        rospy.set_param("speed_limit", speed_limit)
+
     return config
 
 
 def actor_status_callback(ActorStatus_msg):
     """Get the latest ACTor Status message"""
-    global is_simulated, is_autonomous, is_tele_operated
-    global accelerator_percent, brake_percent, road_angle, speed, speed_limit, gear
-    global requested_speed, requested_road_angle, is_enabled
+    global is_enabled, is_simulated, is_autonomous, is_tele_operated
+    global accelerator_percent, brake_percent, steering_wheel_angle, road_angle, speed, speed_limit, gear
 
-    # Get latest status
-    is_simulated = ActorStatus_msg.is_simulated
-    is_autonomous = ActorStatus_msg.is_autonomous
-    is_tele_operated = ActorStatus_msg.is_tele_operated
+    # Control information
+    is_enabled = ActorStatus_msg.is_enabled
+    # is_simulated = ActorStatus_msg.is_simulated # TODO: Implement this option later
+    # is_autonomous = ActorStatus_msg.is_autonomous # TODO: Implement this option later
+    # is_tele_operated = ActorStatus_msg.is_tele_operated # TODO: Implement this option later
 
+    # Hardware information
     accelerator_percent = ActorStatus_msg.accelerator_percent
     brake_percent = ActorStatus_msg.brake_percent
+    steering_wheel_angle = ActorStatus_msg.steering_wheel_angle
     road_angle = ActorStatus_msg.road_angle
     speed = ActorStatus_msg.speed
-    speed_limit = ActorStatus_msg.speed_limit
     gear = ActorStatus_msg.gear
 
-    is_enabled = ActorStatus_msg.is_enabled
 
-    # NOTE: not reading these here
-    # requested_speed = ActorStatus_msg.requested_speed
-    # requested_road_angle = ActorStatus_msg.requested_road_angle
+def drive_twist_callback(Twist_msg):
+    """Drive vehicle using twist messages. Expected mph and degrees"""
+    global requested_speed, requested_road_angle, speed_controller, steering_controller
+
+    # Get requested speed and road angle from twist inputs
+    requested_speed = Twist_msg.linear.x
+    requested_road_angle = Twist_msg.angular.z
 
 
 # End of Callbacks ------------------------------------------------------------
@@ -83,6 +93,7 @@ def actor_status_callback(ActorStatus_msg):
 
 def shift_gear(gear_input: str, second_try=False):
     """Shifts gear using string input"""
+    global gear
 
     gear_input = gear_input.upper()
 
@@ -136,7 +147,7 @@ def zero_dbw_messages():
     msg_accelerator.count = 0
 
     # Brake
-    msg_brakes.pedal_cmd = 0.0
+    msg_brakes.pedal_cmd = 0.0  # NOTE: At 0.50 it is way too much G force in real world.
     msg_brakes.pedal_cmd_type = BrakeCmd.CMD_PERCENT  # 0.0 to 1.0
     msg_brakes.enable = False  # Enable Brake, required 'True' for control via ROS
     # Do not use these without completely understanding how they work on the hardware level:
@@ -171,11 +182,16 @@ def enable():
     pub_enable_cmd.publish(msg)
 
 
-def drive_twist_callback(Twist_msg):
-    """Drive vehicle from twist callback"""
-    global requested_speed, requested_road_angle
-    requested_speed = Twist_msg.linear.x
-    requested_road_angle = Twist_msg.angular.z
+def publish_control_messages():
+    """Publish all control messages to ROS topics"""
+    global msg_accelerator, msg_brakes, msg_steering, msg_shift_gear, msg_gear
+    global config_, speed_limit, requested_road_angle, requested_speed, is_enabled
+    global control_rate
+
+    if is_enabled:
+        pub_accelerator.publish(msg_accelerator)
+        pub_brakes.publish(msg_brakes)
+        pub_steering.publish(msg_steering)
 
     # TODO: Implement throttle, brake, and steering commands
 
@@ -184,17 +200,6 @@ def drive_twist_callback(Twist_msg):
     # TODO: Shift to neutral and then drive if positive speed
 
     # TODO: Stop vehicle and shift to park if no input for 10 seconds
-
-    pass
-
-
-def speed_controller(requested_speed):
-    pass
-    # TODO: Add Controller classes?
-    #           - Proportional Speed Controller
-    #           - Come to stop and reverse?
-    #           - Brake Controller
-    #           - Proportional Steering Controller
 
 
 # End of Functions ------------------------------------------------------------
@@ -206,6 +211,26 @@ rospy.init_node("actor_control")
 rospy.loginfo("actor_control node starting.")
 srv = Server(ActorControlConfig, dyn_rcfg_callback)
 
+# Initialize global variables in a dictionary
+globals_dict = {
+    "accelerator_percent": 0.0,
+    "brake_percent": 0.0,
+    "steering_wheel_angle": 0.0,
+    "road_angle": 0.0,
+    "speed": 0.0,
+    "speed_limit": -1.0,
+    "gear": "NONE",
+    "requested_speed": 0.0,
+    "requested_road_angle": 0.0,
+    "is_enabled": False,
+}
+
+# Make all variables global
+globals().update(globals_dict)
+
+# Get one time parameters and topics
+speed_limit = rospy.get_param("speed_limit", -1.0)
+
 # Define subscribers
 rospy.Subscriber(rospy.get_param("drive"), Twist, drive_twist_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("status"), ActorStatus, actor_status_callback, queue_size=1)
@@ -216,6 +241,9 @@ pub_brakes = rospy.Publisher(rospy.get_param("brakes"), BrakeCmd, queue_size=1)
 pub_steering = rospy.Publisher(rospy.get_param("steering"), SteeringCmd, queue_size=1)
 pub_gear = rospy.Publisher(rospy.get_param("gear"), GearCmd, queue_size=1)
 pub_enable_cmd = rospy.Publisher(rospy.get_param("enable"), Empty, queue_size=1)
+control_rate = 50  # Hz
+rospy.Timer(rospy.Duration(1 / control_rate), publish_control_messages)
+
 # NOTE: DBW's Expected publishing rate <= 50Hz (10ms) with a 10Hz (100ms) timeout
 # NOTE: This package has closed loop control enabled by default and publishes constantly.
 
@@ -228,7 +256,6 @@ msg_shift_gear = GearCmd()
 zero_dbw_messages()
 
 rospy.sleep(5)  # Sleep for 5 seconds before starting anything else
-
 rospy.loginfo("actor_control node running.")
 rospy.spin()
 
