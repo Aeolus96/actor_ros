@@ -84,6 +84,10 @@ def drive_twist_callback(Twist_msg):
     requested_speed = Twist_msg.linear.x
     requested_road_angle = Twist_msg.angular.z
 
+    # Update controller setpoints
+    speed_controller.setpoint = requested_speed
+    steering_controller.setpoint = requested_road_angle
+
 
 # End of Callbacks ------------------------------------------------------------
 
@@ -182,24 +186,60 @@ def enable():
     pub_enable_cmd.publish(msg)
 
 
+def init_controllers():
+    """Initialize PID controllers"""
+    global speed_controller, steering_controller
+
+    speed_controller = PID(
+        Kp=config_.speed_kp,
+        Ki=config_.speed_ki,
+        Kd=config_.speed_kd,
+        setpoint=0.0,
+        sample_time=1 / control_rate,  # control rate in seconds
+        output_limits=(-1.0, None),
+    )
+
+    steering_controller = PID(
+        Kp=config_.steering_kp,
+        Ki=config_.steering_ki,
+        Kd=config_.steering_kd,
+        setpoint=0.0,  # goal
+        sample_time=1 / control_rate,  # control rate in seconds
+        output_limits=(-600, 600),  # degrees (-600deg to 600deg for ACTor)
+    )
+
+
 def publish_control_messages():
     """Publish all control messages to ROS topics"""
     global msg_accelerator, msg_brakes, msg_steering, msg_shift_gear, msg_gear
     global config_, speed_limit, requested_road_angle, requested_speed, is_enabled
-    global control_rate
+    global control_rate, steering_controller, speed_controller
+
+    # Speed Controller -> (requested_speed - speed) -> accelerator pedal ----------------------------------------------
+    speed_controller_output = speed_controller(speed)
+    
+    # Filters:
+    if speed_controller_output < 0:  # Coast till it reaches target
+        speed_controller_output = 0  # Zero (lift-off) accelerator pedal
+        if speed_controller_output < config_.light_braking_threshold:  # Reduce speed via brake pedal
+            msg_brakes.pedal_cmd = config_.light_braking_value # Very light brake values
+            msg_brakes.enable = True
+        
+    
+
+
+    msg_accelerator.pedal_cmd = speed_controller_output
+
+    
+    # Steering Controller -> (requested_road_angle - road_angle) -> steering wheel ------------------------------------
+    steering_controller_output = steering_controller(road_angle)
+    # Filters: None, (-600, 600) limits set in the PID controller
+    msg_steering.steering_wheel_angle_cmd = steering_controller_output
 
     if is_enabled:
         pub_accelerator.publish(msg_accelerator)
         pub_brakes.publish(msg_brakes)
         pub_steering.publish(msg_steering)
-
-    # TODO: Implement throttle, brake, and steering commands
-
-    # TODO: Shift to neutral and then reverse if negative speed
-
-    # TODO: Shift to neutral and then drive if positive speed
-
-    # TODO: Stop vehicle and shift to park if no input for 10 seconds
 
 
 # End of Functions ------------------------------------------------------------
@@ -256,6 +296,7 @@ msg_shift_gear = GearCmd()
 zero_dbw_messages()
 
 rospy.sleep(5)  # Sleep for 5 seconds before starting anything else
+init_controllers()  # Initialize pedal and steering controllers
 rospy.loginfo("actor_control node running.")
 rospy.spin()
 
