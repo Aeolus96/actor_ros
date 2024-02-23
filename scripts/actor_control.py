@@ -16,7 +16,7 @@ Authors:
 License: MIT
 """
 
-import math  # Math Library
+from threading import Lock  # Thread Locking
 
 import rospy  # ROS Python API
 from actor_ros.cfg import ActorControlConfig  # Dynamic Reconfigure Config File
@@ -78,15 +78,74 @@ def actor_status_callback(ActorStatus_msg):
 
 def drive_twist_callback(Twist_msg):
     """Drive vehicle using twist messages. Expected mph and degrees"""
-    global requested_speed, requested_road_angle, speed_controller, steering_controller
+    global requested_speed, requested_road_angle, speed_controller, steering_controller, reverse_mode
+    global last_twist_msg_time, last_twist_msg_time_lock
+
+    # Update last twist message time for safety
+    with last_twist_msg_time_lock:
+        last_twist_msg_time = rospy.Time.now()
 
     # Get requested speed and road angle from twist inputs
-    requested_speed = Twist_msg.linear.x
+    requested_speed = speed_limiter(Twist_msg.linear.x)
     requested_road_angle = Twist_msg.angular.z
+
+    # Handle reverse case
+    if requested_speed < 0 and not reverse_mode:
+        reverse_mode = True
+        # TODO: Come to stop and reverse
+
+    if requested_speed > 0 and reverse_mode:
+        reverse_mode = False
+        # TODO: Come to stop and drive
 
     # Update controller setpoints
     speed_controller.setpoint = requested_speed
     steering_controller.setpoint = requested_road_angle
+
+
+def publish_control_messages():
+    """Publish all control messages to ROS topics"""
+    global msg_accelerator, msg_brakes, msg_steering, msg_shift_gear, msg_gear
+    global config_, speed_limit, requested_road_angle, requested_speed, is_enabled
+    global control_rate, steering_controller, speed_controller, reverse_mode
+    global last_twist_msg_time, last_twist_msg_time_lock
+
+    zero_dbw_messages()  # Reset all DBW messages
+
+    # Speed Controller -> (requested_speed - speed) -> accelerator pedal ----------------------------------------------
+    speed_controller_output = speed_controller(speed)
+
+    if speed_controller_output <= 0.0:  # Coast to reach a lower target speed
+        if reverse_mode and speed < 0.0:  # Reverse Active
+            speed_controller_output *= -1  # covert to positive for accelerator pedal
+            msg_accelerator.enable = True
+
+        if speed_controller_output < config_.light_braking_threshold:  # If required, use light braking to reduce speed
+            msg_brakes.pedal_cmd = config_.light_braking_value
+            msg_brakes.enable = True
+
+    else:  # Accelerate to reach target speed
+        msg_accelerator.enable = True
+
+    # Convert to percent scale (0.0 to 1.0)
+    msg_accelerator.pedal_cmd = speed_controller_output / 100
+
+    # Steering Controller -> (requested_road_angle - road_angle) -> steering wheel ------------------------------------
+    steering_controller_output = steering_controller(road_angle)
+
+    if abs(steering_controller_output) > config_.steering_deadband:  # deadband removes jitter by ignoring small values
+        msg_steering.enable = True
+
+    msg_steering.steering_wheel_angle_cmd = steering_controller_output
+
+    # Publish all control messages
+    with last_twist_msg_time_lock:  # Check for twist message timeout
+        time_since_last_twist_msg = (rospy.Time.now() - last_twist_msg_time).to_sec()
+
+    if time_since_last_twist_msg < config_.twist_timeout:  # ROS control enabled
+        pub_accelerator.publish(msg_accelerator)
+        pub_brakes.publish(msg_brakes)
+        pub_steering.publish(msg_steering)
 
 
 # End of Callbacks ------------------------------------------------------------
@@ -140,6 +199,7 @@ def shift_gear(gear_input: str, second_try=False):
 
 def zero_dbw_messages():
     """Set all DBW messages to zero or default values"""
+    global msg_accelerator, msg_brakes, msg_steering, msg_shift_gear, msg_gear
 
     # Accelerator
     msg_accelerator.pedal_cmd = 0.0
@@ -196,7 +256,8 @@ def init_controllers():
         Kd=config_.speed_kd,
         setpoint=0.0,
         sample_time=1 / control_rate,  # control rate in seconds
-        output_limits=(-1.0, None),
+        output_limits=(-100.0, 100.0),
+        # NOTE: Output needs to be converted to Accelerator Percent (0.0 to 1.0) for ThrottleCmd
     )
 
     steering_controller = PID(
@@ -205,41 +266,13 @@ def init_controllers():
         Kd=config_.steering_kd,
         setpoint=0.0,  # goal
         sample_time=1 / control_rate,  # control rate in seconds
-        output_limits=(-600, 600),  # degrees (-600deg to 600deg for ACTor)
+        output_limits=(-600, 600),  # degrees (-600deg to 600deg for ACTor steering wheel)
     )
 
 
-def publish_control_messages():
-    """Publish all control messages to ROS topics"""
-    global msg_accelerator, msg_brakes, msg_steering, msg_shift_gear, msg_gear
-    global config_, speed_limit, requested_road_angle, requested_speed, is_enabled
-    global control_rate, steering_controller, speed_controller
-
-    # Speed Controller -> (requested_speed - speed) -> accelerator pedal ----------------------------------------------
-    speed_controller_output = speed_controller(speed)
-    
-    # Filters:
-    if speed_controller_output < 0:  # Coast till it reaches target
-        speed_controller_output = 0  # Zero (lift-off) accelerator pedal
-        if speed_controller_output < config_.light_braking_threshold:  # Reduce speed via brake pedal
-            msg_brakes.pedal_cmd = config_.light_braking_value # Very light brake values
-            msg_brakes.enable = True
-        
-    
-
-
-    msg_accelerator.pedal_cmd = speed_controller_output
-
-    
-    # Steering Controller -> (requested_road_angle - road_angle) -> steering wheel ------------------------------------
-    steering_controller_output = steering_controller(road_angle)
-    # Filters: None, (-600, 600) limits set in the PID controller
-    msg_steering.steering_wheel_angle_cmd = steering_controller_output
-
-    if is_enabled:
-        pub_accelerator.publish(msg_accelerator)
-        pub_brakes.publish(msg_brakes)
-        pub_steering.publish(msg_steering)
+def speed_limiter(speed, lower_limit=config_.reverse_speed_limit, upper_limit=config_.speed_limit):
+    """Limit speed between lower and upper limits"""
+    return lower_limit if speed < lower_limit else upper_limit if speed > upper_limit else speed
 
 
 # End of Functions ------------------------------------------------------------
@@ -270,6 +303,17 @@ globals().update(globals_dict)
 
 # Get one time parameters and topics
 speed_limit = rospy.get_param("speed_limit", -1.0)
+last_twist_msg_time = rospy.Time(0)  # Initialize time tracking for twist messages
+last_twist_msg_time_lock = Lock()  # Lock for time tracking thread safety
+# Define message types
+msg_accelerator = ThrottleCmd()
+msg_brakes = BrakeCmd()
+msg_steering = SteeringCmd()
+msg_gear = Gear()
+msg_shift_gear = GearCmd()
+zero_dbw_messages()
+
+rospy.sleep(5)  # Sleep for 5 seconds to allow variables to be initialized from parameters
 
 # Define subscribers
 rospy.Subscriber(rospy.get_param("drive"), Twist, drive_twist_callback, queue_size=1)
@@ -281,22 +325,14 @@ pub_brakes = rospy.Publisher(rospy.get_param("brakes"), BrakeCmd, queue_size=1)
 pub_steering = rospy.Publisher(rospy.get_param("steering"), SteeringCmd, queue_size=1)
 pub_gear = rospy.Publisher(rospy.get_param("gear"), GearCmd, queue_size=1)
 pub_enable_cmd = rospy.Publisher(rospy.get_param("enable"), Empty, queue_size=1)
+
+# Initialize controllers
+init_controllers()  # Initialize pedal and steering controllers
 control_rate = 50  # Hz
 rospy.Timer(rospy.Duration(1 / control_rate), publish_control_messages)
-
 # NOTE: DBW's Expected publishing rate <= 50Hz (10ms) with a 10Hz (100ms) timeout
-# NOTE: This package has closed loop control enabled by default and publishes constantly.
 
-# Define message types
-msg_accelerator = ThrottleCmd()
-msg_brakes = BrakeCmd()
-msg_steering = SteeringCmd()
-msg_gear = Gear()
-msg_shift_gear = GearCmd()
-zero_dbw_messages()
 
-rospy.sleep(5)  # Sleep for 5 seconds before starting anything else
-init_controllers()  # Initialize pedal and steering controllers
 rospy.loginfo("actor_control node running.")
 rospy.spin()
 

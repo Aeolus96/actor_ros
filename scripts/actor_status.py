@@ -56,8 +56,6 @@ def report_brakes_callback(BrakeReport_msg):
     brake_percent = round(((BrakeReport_msg.torque_input / 8000) * 100), 2)
     # NOTE: Max torque is 8kNm. input is measured in Nm when pedal is pressed.
 
-    # TODO: Verify brake percent when cmd is sent
-
 
 def report_steering_callback(SteeringReport_msg):
     """Report steering angle and vehicle speed"""
