@@ -21,7 +21,6 @@ from threading import Lock  # Thread Locking
 import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
 import rospy  # ROS Python API
 from actor_ros.cfg import ActorControlConfig  # Dynamic Reconfigure Config File
-from actor_ros.msg import ActorStatus  # Custom ROS Message
 from dbw_polaris_msgs.msg import (  # Drive By Wire Messages
     BrakeCmd,
     Gear,
@@ -55,25 +54,19 @@ def dyn_rcfg_callback(config, level):
 
 def drive_twist_callback(Twist_msg):
     """Drive vehicle using twist messages. Expected mph and degrees"""
-    global speed_controller, steering_controller, reverse_mode
+    global speed_controller, steering_controller
     global last_twist_msg_time, last_twist_msg_time_lock
 
-    # Update last twist message time for safety timeout
+    # Update last twist message time for timeout check
     with last_twist_msg_time_lock:
         last_twist_msg_time = rospy.Time.now()
 
     # Get requested speed and road angle from twist inputs
     requested_speed = speed_limiter(Twist_msg.linear.x)
-    requested_road_angle = Twist_msg.angular.z
+    requested_road_angle = steering_limiter(Twist_msg.angular.z)
 
-    # Handle reverse case
-    if requested_speed < 0 and not reverse_mode:
-        reverse_mode = True
-        # TODO: Come to stop and reverse
-
-    if requested_speed > 0 and reverse_mode:
-        reverse_mode = False
-        # TODO: Come to stop and drive
+    # Handle gear shifting
+    automatic_gear_shifting(requested_speed)
 
     # Update controller setpoints
     speed_controller.setpoint = requested_speed
@@ -179,7 +172,37 @@ def reset_drive_messages():
     return msg_accelerator, msg_brakes, msg_steering
 
 
-def shift_gear(gear_input: str, second_try=False):
+def automatic_gear_shifting(requested_speed) -> None:
+    """Automatically shifts gear based on requested speed and current speed"""
+
+    # --------------------------------- at or near 0mph
+    if abs(actor.speed) < config_.zero_mph_deadzone:
+        #
+        # ----------------------------- requested staying stopped
+        if abs(requested_speed) < config_.zero_mph_deadzone:
+            shift_gear("NEUTRAL")
+
+        # ----------------------------- requested moving forward
+        if requested_speed > config_.zero_mph_deadzone:
+            shift_gear("DRIVE")
+
+        # ----------------------------- requested moving backward
+        if requested_speed < -config_.zero_mph_deadzone:
+            shift_gear("REVERSE")
+
+    # --------------------------------- already in motion
+    else:
+        #
+        # ----------------------------- requested stopping OR changing direction of motion (requires stopping)
+        if abs(requested_speed) < config_.zero_mph_deadzone or (actor.speed * requested_speed) < 0:
+            shift_gear("NEUTRAL")
+
+        # ----------------------------- requested moving in the same direction
+        else:
+            pass
+
+
+def shift_gear(gear_input: str) -> bool:
     """Shifts gear using string input"""
 
     gear_input = gear_input.upper()
@@ -198,17 +221,11 @@ def shift_gear(gear_input: str, second_try=False):
         return False
 
     if actor.gear == gear_dict[gear_input]:
-        rospy.loginfo(f"Gear is already {gear_input}")
+        rospy.logdebug(f"Gear is already {gear_input}")
         return True
 
-    if abs(actor.speed) > 0.5:  # Speed is not near zero
-        if second_try:
-            rospy.logerr(f"Cannot shift to {gear_input} while vehicle is moving.")
-            return False
-
-        rospy.logwarn(f"Cannot shift to {gear_input} while vehicle is moving. Waiting 2 seconds before retrying...")
-        rospy.sleep(2)
-        return shift_gear(gear_input, second_try=True)
+    if abs(actor.speed) > config_.zero_mph_deadzone:  # Speed is not near zero
+        come_to_stop_with_brakes()  # and then shift gear
 
     # Publish gear shift command ----------------------------------------------
     msg_gear = Gear()
@@ -216,9 +233,27 @@ def shift_gear(gear_input: str, second_try=False):
     msg_gear.gear = gear_dict[gear_input]  # Set gear message
     msg_shift_gear.cmd = msg_gear  # Make gear shift command
     pub_gear.publish(msg_shift_gear)
-    rospy.loginfo(f"Gear shifted to {gear_input}")
+    rospy.logdebug(f"Gear shifted to {gear_input}")
     rospy.sleep(0.5)  # Wait for gear to shift to happen in the hardware
     return True
+
+
+def come_to_stop_with_brakes():
+    """Come to a complete stop using brakes"""
+    # Initialize Brake message
+    msg_brakes = BrakeCmd()
+    msg_brakes.pedal_cmd = 0.0
+    msg_brakes.pedal_cmd_type = BrakeCmd.CMD_PERCENT  # 0.0 to 1.0
+    msg_brakes.enable = True
+
+    first_time = rospy.Time.now()
+    brake_timeout = rospy.Duration(5)  # 5 seconds
+    rate = 1 / config_.brake_ramp_hz
+    while abs(actor.speed) > config_.zero_mph_deadzone or (rospy.Time.now() - first_time) < brake_timeout:
+        # Increase brakes gradually upto max value
+        msg_brakes.pedal_cmd += 0.01 if msg_brakes.pedal_cmd < config_.brake_max else config_.brake_max
+        pub_brakes.publish(msg_brakes)
+        rospy.sleep(rate)
 
 
 def enable_dbw():
@@ -250,11 +285,13 @@ def init_pid_controllers():
         output_limits=(-600, 600),  # degrees (-600deg to 600deg for ACTor steering wheel)
     )
 
-    rospy.loginfo(
-        f"Speed Controller Initialized with PID values: {config_.speed_kp}, {config_.speed_ki}, {config_.speed_kd}"
+    rospy.logdebug(
+        "Speed Controller Initialized with P, I, D values: "
+        + f"{config_.speed_kp}, {config_.speed_ki}, {config_.speed_kd}"  # PID values
     )
-    rospy.loginfo(
-        f"Steering Controller Initialized with PID values: {config_.steering_kp}, {config_.steering_ki}, {config_.steering_kd}"
+    rospy.logdebug(
+        "Steering Controller Initialized with P, I, D values: "
+        + f"{config_.steering_kp}, {config_.steering_ki}, {config_.steering_kd}"  # PID values
     )
 
 
@@ -262,6 +299,12 @@ def speed_limiter(speed, lower_limit=config_.reverse_speed_limit, upper_limit=co
     """Limit speed between lower and upper limits"""
 
     return lower_limit if speed < lower_limit else upper_limit if speed > upper_limit else speed
+
+
+def steering_limiter(steering, lower_limit=-600, upper_limit=600):
+    """Limit steering between lower and upper limits"""
+
+    return lower_limit if steering < lower_limit else upper_limit if steering > upper_limit else steering
 
 
 # End of Functions ------------------------------------------------------------
@@ -279,7 +322,6 @@ srv = Server(ActorControlConfig, dyn_rcfg_callback)
 # Initialize global variables
 last_twist_msg_time = rospy.Time(0)
 last_twist_msg_time_lock = Lock()
-reverse_mode = False
 
 # Countdown timer while printing initialization message - waiting for dynamic reconfigure to spin up
 for i in range(3, 0, -1):
