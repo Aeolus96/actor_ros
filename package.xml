@@ -76,6 +76,7 @@
   <exec_depend>message_generation</exec_depend>
   <exec_depend>message_runtime</exec_depend>
   <exec_depend>python-rospkg</exec_depend>
+  <run_depend>python3-simple-pid-pip</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

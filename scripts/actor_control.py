@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 
 """
-ROS Node for Controlling Vehicle.
+ROS Node for Controlling ACTor Vehicle.
 
 This script is part of a larger ROS-based system for controlling and monitoring a vehicle's behavior.
 
 Dependencies:
 - ROS (Robot Operating System)
 - actor_ros package (for custom ROS messages)
-- dbw_polaris_msgs package (for Drive By Wire messages developed by DataSoeed) (https://bitbucket.org/DataspeedInc/dbw_polaris_ros/src/master/)
+- dbw_polaris_msgs package (for Drive By Wire messages developed by DataSoeed)
+              (https://bitbucket.org/DataspeedInc/dbw_polaris_ros/src/master/)
 
 Authors:
 - [Devson Butani] <dbutani@ltu.edu>

@@ -10,7 +10,6 @@ from catkin_pkg.python_setup import generate_distutils_setup
 setup_args = generate_distutils_setup(
     packages=["actor_ros"],
     package_dir={"": "src"},
-    
     # Add install dependencies below:
     # for example: <sudo pip install required_python_package1 required_python_package2> becomes:
     # install_requires=['required_python_package1', 'required_python_package2'],
@@ -18,6 +17,7 @@ setup_args = generate_distutils_setup(
     # https://github.com/ros/rosdistro/blob/master/rosdep/python.yaml
     # example: <run_depend>python-ws4py-pip</run_depend>
     # if not found in rosdistro list, install manually...
+    install_requires=["python-rospkg", "python3-simple-pid-pip"],
 )
 
 setup(**setup_args)
