@@ -45,11 +45,12 @@ from std_msgs.msg import Empty  # ROS Messages
 
 def dyn_rcfg_callback(config, level):
     """Dynamic Reconfigure Callback"""
-    global config_
+    global config_, node_initialized
 
     config_ = config  # Update config global
     rospy.set_param("speed_limit", config_.speed_limit)  # Set speed limit
-    init_pid_controllers()  # Reset PID controllers
+    if node_initialized:
+        init_pid_controllers()
     return config
 
 
@@ -63,15 +64,17 @@ def drive_twist_callback(Twist_msg):
         last_twist_msg_time = rospy.Time.now()
 
     # Get requested speed and road angle from twist inputs
-    requested_speed = speed_limiter(Twist_msg.linear.x)
-    requested_road_angle = steering_limiter(Twist_msg.angular.z)
+    requested_speed = speed_limiter(
+        Twist_msg.linear.x, lower_limit=config_.reverse_speed_limit, upper_limit=config_.speed_limit
+    )
+    requested_road_angle = road_angle_limiter(Twist_msg.angular.z)
 
     # Handle gear shifting
     automatic_gear_shifting(requested_speed)
 
     # Update controller setpoints
-    speed_controller.setpoint = requested_speed
-    steering_controller.setpoint = requested_road_angle
+    speed_controller.setpoint = round(requested_speed, 2)
+    steering_controller.setpoint = round(requested_road_angle, 2)
 
 
 def publish_control_messages(TimerEvent):
@@ -105,11 +108,11 @@ def publish_control_messages(TimerEvent):
         # ---------------------------------------------------------------------
         # Steering Controller -> steering wheel angle
         steering_controller_output = steering_controller(actor.road_angle)
-
+        p, i, d = steering_controller.components
+        rospy.loginfo(f"Steering Controller: p = {p:2.3f}, i = {i:2.3f}, d = {d:2.3f} IN = {actor.road_angle:2.3f}, OUT = {steering_controller_output:2.3f}")
         if abs(steering_controller_output) > config_.steering_deadband:  # deadband removes jitter
             msg_steering.enable = True
-
-        msg_steering.steering_wheel_angle_cmd = steering_controller_output
+            msg_steering.steering_wheel_angle_cmd = steering_controller_output
 
         # ---------------------------------------------------------------------
         enable_dbw()
@@ -271,9 +274,10 @@ def init_pid_controllers():
         Kp=config_.speed_kp,
         Ki=config_.speed_ki,
         Kd=config_.speed_kd,
-        setpoint=0.0,
+        setpoint=actor.speed,  # current speed
         sample_time=1 / config_.control_rate_hz,  # control rate in seconds
         output_limits=(-100.0, 100.0),
+        starting_output=actor.speed # Set starting output to current speed
         # NOTE: Output needs to be converted to Accelerator Percent (0.0 to 1.0) for ThrottleCmd
     )
 
@@ -281,11 +285,17 @@ def init_pid_controllers():
         Kp=config_.steering_kp,
         Ki=config_.steering_ki,
         Kd=config_.steering_kd,
-        setpoint=0.0,  # goal
+        setpoint=actor.road_angle,  # current angle
         sample_time=1 / config_.control_rate_hz,  # control rate in seconds
         output_limits=(-600, 600),  # degrees (-600deg to 600deg for ACTor steering wheel)
+        starting_output=actor.road_angle # Set starting output to current angle
     )
+    
+    steering_controller.proportional_on_measurement = True
+    steering_controller.differential_on_measurement = True
 
+    rospy.loginfo(f"PID Controllers Initialized: {actor.speed}, {actor.road_angle}")
+    
     rospy.logdebug(
         "Speed Controller Initialized with P, I, D values: "
         + f"{config_.speed_kp}, {config_.speed_ki}, {config_.speed_kd}"  # PID values
@@ -296,13 +306,13 @@ def init_pid_controllers():
     )
 
 
-def speed_limiter(speed, lower_limit=config_.reverse_speed_limit, upper_limit=config_.speed_limit):
+def speed_limiter(speed, lower_limit=-1, upper_limit=5):
     """Limit speed between lower and upper limits"""
 
     return lower_limit if speed < lower_limit else upper_limit if speed > upper_limit else speed
 
 
-def steering_limiter(steering, lower_limit=-600, upper_limit=600):
+def road_angle_limiter(steering, lower_limit=-37.5, upper_limit=37.5):
     """Limit steering between lower and upper limits"""
 
     return lower_limit if steering < lower_limit else upper_limit if steering > upper_limit else steering
@@ -318,12 +328,13 @@ def steering_limiter(steering, lower_limit=-600, upper_limit=600):
 
 rospy.init_node("actor_control")
 rospy.loginfo("actor_control node starting.")
-srv = Server(ActorControlConfig, dyn_rcfg_callback)
 
 # Initialize global variables
+node_initialized = False
 last_twist_msg_time = rospy.Time(0)
 last_twist_msg_time_lock = Lock()
 
+srv = Server(ActorControlConfig, dyn_rcfg_callback)
 # Countdown timer while printing initialization message - waiting for dynamic reconfigure to spin up
 for i in range(3, 0, -1):
     rospy.loginfo(f"ACTor Control node Initializing in {i}...")
@@ -345,6 +356,7 @@ init_pid_controllers()
 rospy.Timer(rospy.Duration(1 / config_.control_rate_hz), publish_control_messages)
 # NOTE: DBW's Expected publishing rate <= 50Hz (10ms) with a 10Hz (100ms) timeout
 
+node_initialized = True
 
 rospy.loginfo("actor_control node running.")
 rospy.spin()

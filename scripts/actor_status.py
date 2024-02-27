@@ -155,6 +155,7 @@ globals_dict = {
     "accelerator_percent": 0.0,
     "brake_percent": 0.0,
     "road_angle": 0.0,
+    "steering_wheel_angle": 0.0,
     "speed": 0.0,
     "speed_limit": -1.0,
     "gear": "NONE",

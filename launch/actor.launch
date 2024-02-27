@@ -30,7 +30,7 @@
         <node name="actor_status" pkg="actor_ros" type="actor_status.py" respawn="true" />
 
         <!-- Actor Control -->
-        <node name="actor_control" pkg="actor_ros" type="actor_control.py" respawn="true" />
+        <node name="actor_control" pkg="actor_ros" type="actor_control.py" respawn="true" output="screen" />
 
         <!-- Actor GUI -->
         <!-- <node name="actor_gui" pkg="actor_ros" type="actor_gui.py" respawn="true" /> -->
