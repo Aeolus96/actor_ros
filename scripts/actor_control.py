@@ -17,6 +17,7 @@ Authors:
 License: MIT
 """
 
+import math
 from threading import Lock  # Thread Locking
 
 import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
@@ -50,7 +51,8 @@ def dyn_rcfg_callback(config, level):
     config_ = config  # Update config global
     rospy.set_param("speed_limit", config_.speed_limit)  # Set speed limit
     if node_initialized:
-        init_pid_controllers()
+        init_pid_controllers()  # Reinitialize PID controllers when tunings change
+        # <<< DO NOT CHANGE TUNINGS WHILE IN MOTION >>>
     return config
 
 
@@ -65,9 +67,11 @@ def drive_twist_callback(Twist_msg):
 
     # Get requested speed and road angle from twist inputs
     requested_speed = speed_limiter(
-        Twist_msg.linear.x, lower_limit=config_.reverse_speed_limit, upper_limit=config_.speed_limit
+        Twist_msg.linear.x,  # Target speed
+        lower_limit=config_.reverse_speed_limit,  # Reverse speed limit
+        upper_limit=config_.speed_limit,  # Forward speed limit
     )
-    requested_road_angle = road_angle_limiter(Twist_msg.angular.z)
+    requested_road_angle = road_angle_limiter(Twist_msg.angular.z)  # Target road angle
 
     # Handle gear shifting
     automatic_gear_shifting(requested_speed)
@@ -84,7 +88,7 @@ def publish_control_messages(TimerEvent):
     with last_twist_msg_time_lock:  # Check for twist message timeout
         time_since_last_twist_msg = (rospy.Time.now() - last_twist_msg_time).to_sec()
 
-    if time_since_last_twist_msg < config_.twist_timeout:  # ROS control enabled
+    if time_since_last_twist_msg < config_.twist_timeout and config_.enable_controller:  # ROS control enabled
         speed_controller.auto_mode = True  # Enable PID calculations
         steering_controller.auto_mode = True  # Enable PID calculations
         msg_accelerator, msg_brakes, msg_steering = reset_drive_messages()
@@ -92,6 +96,8 @@ def publish_control_messages(TimerEvent):
         # Calculate PID outputs
         # ---------------------------------------------------------------------
         # Speed Controller -> accelerator pedal and brake pedal values
+        # INPUT: speed (mph) --> PID OUTPUT: required accelerator pedal and brake pedal values (-100 to 100)
+        # --> 0.0 to 1.0 (percent) depending on output sign and coast settings
         speed_controller_output = speed_controller(actor.speed)
 
         if actor.gear == "REVERSE":  # negative output still uses accelerator pedal
@@ -107,14 +113,25 @@ def publish_control_messages(TimerEvent):
 
         # ---------------------------------------------------------------------
         # Steering Controller -> steering wheel angle
-        steering_controller_output = steering_controller(actor.road_angle)
-        p, i, d = steering_controller.components
-        rospy.loginfo(f"Steering Controller: p = {p:2.3f}, i = {i:2.3f}, d = {d:2.3f} IN = {actor.road_angle:2.3f}, OUT = {steering_controller_output:2.3f}")
-        if abs(steering_controller_output) > config_.steering_deadband:  # deadband removes jitter
+        # INPUT: road angle (degrees) --> PID OUTPUT: required change in road angle (degrees)
+        # --> target steering wheel angle (radians) with a deadband setting
+        steering_controller_output = steering_controller(actor.road_angle) * 16.2  # Convert to 16.2:1 ratio
+        target_steering_angle = actor.steering_wheel_angle + steering_controller_output
+
+        if abs(steering_controller_output) > config_.steering_deadband:  # removes jitter at target angle
             msg_steering.enable = True
-            msg_steering.steering_wheel_angle_cmd = steering_controller_output
+            msg_steering.steering_wheel_angle_cmd = math.radians(target_steering_angle)
 
         # ---------------------------------------------------------------------
+        if config_.pid_tuning_mode:  # Display PID tuning values - only used for tuning
+            p, i, d = steering_controller.components
+            rospy.loginfo(
+                f"P = {p:>8.3f}, I = {i:>8.3f}, D = {d:>8.3f}, IN = {actor.steering_wheel_angle:>8.3f}, OUT = {target_steering_angle:>8.3f}, RA = {actor.road_angle:>8.3f}"
+            )
+            # NOTE: output="screen" is required in the launch file
+
+        # ---------------------------------------------------------------------
+        # Publish control messages
         enable_dbw()
         pub_accelerator.publish(msg_accelerator)
         pub_brakes.publish(msg_brakes)
@@ -161,6 +178,7 @@ def reset_drive_messages():
     # Steering
     msg_steering = SteeringCmd()
     msg_steering.steering_wheel_angle_cmd = 0.0  # radians (-600deg to 600deg for ACTor)
+    # NOTE: Output is the target steering angle in radians not an angle increment
     # 16.2:1 steering to road angle ratio and 69 inch Ackerman wheelbase
     msg_steering.enable = False  # Enable Steering, required 'True' for control via ROS
     # Do not use these without completely understanding how they work on the hardware level:
@@ -180,25 +198,25 @@ def automatic_gear_shifting(requested_speed) -> None:
     """Automatically shifts gear based on requested speed and current speed"""
 
     # --------------------------------- at or near 0mph
-    if abs(actor.speed) < config_.zero_mph_deadzone:
+    if abs(actor.speed) < config_.speed_deadband:
         #
         # ----------------------------- requested staying stopped
-        if abs(requested_speed) < config_.zero_mph_deadzone:
+        if abs(requested_speed) < config_.speed_deadband:
             shift_gear("NEUTRAL")
 
         # ----------------------------- requested moving forward
-        if requested_speed > config_.zero_mph_deadzone:
+        if requested_speed > config_.speed_deadband:
             shift_gear("DRIVE")
 
         # ----------------------------- requested moving backward
-        if requested_speed < -config_.zero_mph_deadzone:
+        if requested_speed < -config_.speed_deadband:
             shift_gear("REVERSE")
 
     # --------------------------------- already in motion
     else:
         #
         # ----------------------------- requested stopping OR changing direction of motion (requires stopping)
-        if abs(requested_speed) < config_.zero_mph_deadzone or (actor.speed * requested_speed) < 0:
+        if abs(requested_speed) < config_.speed_deadband or (actor.speed * requested_speed) < 0:
             shift_gear("NEUTRAL")
 
         # ----------------------------- requested moving in the same direction
@@ -228,7 +246,7 @@ def shift_gear(gear_input: str) -> bool:
         rospy.logdebug(f"Gear is already {gear_input}")
         return True
 
-    if abs(actor.speed) > config_.zero_mph_deadzone:  # Speed is not near zero
+    if abs(actor.speed) > config_.speed_deadband:  # Speed is not near zero
         come_to_stop_with_brakes()  # and then shift gear
 
     # Publish gear shift command ----------------------------------------------
@@ -253,7 +271,7 @@ def come_to_stop_with_brakes():
     first_time = rospy.Time.now()
     brake_timeout = rospy.Duration(5)  # 5 seconds
     rate = 1 / config_.brake_ramp_hz
-    while abs(actor.speed) > config_.zero_mph_deadzone or (rospy.Time.now() - first_time) < brake_timeout:
+    while abs(actor.speed) > config_.speed_deadband or (rospy.Time.now() - first_time) < brake_timeout:
         # Increase brakes gradually upto max value
         msg_brakes.pedal_cmd += 0.01 if msg_brakes.pedal_cmd < config_.brake_max else config_.brake_max
         pub_brakes.publish(msg_brakes)
@@ -274,36 +292,37 @@ def init_pid_controllers():
         Kp=config_.speed_kp,
         Ki=config_.speed_ki,
         Kd=config_.speed_kd,
-        setpoint=actor.speed,  # current speed
+        setpoint=actor.speed,  # current speed in mph
         sample_time=1 / config_.control_rate_hz,  # control rate in seconds
-        output_limits=(-100.0, 100.0),
-        starting_output=actor.speed # Set starting output to current speed
+        output_limits=(-100.0, 100.0),  # Pedal Percent (-100 to 0 for brakes, 0 to 100 for throttle)
+        starting_output=actor.speed,  # Set starting output to current speed
         # NOTE: Output needs to be converted to Accelerator Percent (0.0 to 1.0) for ThrottleCmd
     )
+    speed_controller.proportional_on_measurement = True
+    speed_controller.differential_on_measurement = True
 
     steering_controller = PID(
         Kp=config_.steering_kp,
         Ki=config_.steering_ki,
         Kd=config_.steering_kd,
-        setpoint=actor.road_angle,  # current angle
+        setpoint=actor.road_angle,  # current road angle in degrees
         sample_time=1 / config_.control_rate_hz,  # control rate in seconds
-        output_limits=(-600, 600),  # degrees (-600deg to 600deg for ACTor steering wheel)
-        starting_output=actor.road_angle # Set starting output to current angle
+        output_limits=(-40, 40),  # degrees (-40deg to 40deg for ACTor road angle)
+        starting_output=actor.road_angle,  # Set starting output to current angle
+        # NOTE: Output needs to be converted to radians
     )
-    
     steering_controller.proportional_on_measurement = True
     steering_controller.differential_on_measurement = True
 
-    rospy.loginfo(f"PID Controllers Initialized: {actor.speed}, {actor.road_angle}")
-    
-    rospy.logdebug(
-        "Speed Controller Initialized with P, I, D values: "
-        + f"{config_.speed_kp}, {config_.speed_ki}, {config_.speed_kd}"  # PID values
-    )
-    rospy.logdebug(
-        "Steering Controller Initialized with P, I, D values: "
-        + f"{config_.steering_kp}, {config_.steering_ki}, {config_.steering_kd}"  # PID values
-    )
+    if config_.pid_tuning_mode:
+        rospy.loginfo(
+            "Speed Controller Initialized with P, I, D values: "
+            + f"{config_.speed_kp}, {config_.speed_ki}, {config_.speed_kd}"  # PID values
+        )
+        rospy.loginfo(
+            "Steering Controller Initialized with P, I, D values: "
+            + f"{config_.steering_kp}, {config_.steering_ki}, {config_.steering_kd}"  # PID values
+        )
 
 
 def speed_limiter(speed, lower_limit=-1, upper_limit=5):

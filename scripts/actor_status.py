@@ -62,12 +62,10 @@ def report_steering_callback(SteeringReport_msg):
     global steering_wheel_angle, road_angle, speed
 
     # Get steering wheel angle and convert to degrees then to road angle in 16.2:1 ratio
-    steering_wheel_angle = SteeringReport_msg.steering_wheel_angle * 180 / math.pi  # Convert radians to degrees
+    steering_wheel_angle = math.degrees(SteeringReport_msg.steering_wheel_angle)  # Convert radians to degrees
     road_angle = round((steering_wheel_angle / 16.2), 2)  # Convert steering wheel angle to drive wheel angle
     # Get speed in m/s and convert to mph
     speed = round(SteeringReport_msg.speed * 2.23694, 2)  # Convert from m/s to mph
-
-    # TODO: Verify steering angle
 
 
 def report_gear_callback(GearReport_msg):
@@ -128,18 +126,18 @@ def publish_status(TimerEvent):
     status.is_tele_operated = False  # TODO: Implement this option later
 
     # Vehicle States
-    status.accelerator_percent = accelerator_percent
-    status.brake_percent = brake_percent
-    status.steering_wheel_angle = steering_wheel_angle
-    status.road_angle = road_angle
+    status.accelerator_percent = round(accelerator_percent, 3)
+    status.brake_percent = round(brake_percent, 3)
+    status.steering_wheel_angle = round(steering_wheel_angle, 3)
+    status.road_angle = round(road_angle, 3)
     status.gear = gear
-    status.speed = speed
-    status.speed_limit = speed_limit
+    status.speed = round(speed, 2)
 
     # ROS Control
     status.is_enabled = enabled
-    status.requested_speed = requested_speed
-    status.requested_road_angle = requested_road_angle
+    status.speed_limit = round(speed_limit, 3)
+    status.requested_speed = round(requested_speed, 3)
+    status.requested_road_angle = round(requested_road_angle, 3)
 
     pub_status.publish(status)
 
