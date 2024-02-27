@@ -90,6 +90,7 @@ def drive_twist_callback(Twist_msg):
     """Report the requested twist values from callback"""
     global requested_speed, requested_road_angle
 
+    # TODO: Implement timeout to 0
     # Get requested speed and road angle
     requested_speed = Twist_msg.linear.x
     requested_road_angle = Twist_msg.angular.z
