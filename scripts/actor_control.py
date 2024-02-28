@@ -54,24 +54,42 @@ def dyn_rcfg_callback(config, level):
 
 
 def drive_twist_callback(Twist_msg):
-    """Drive vehicle using twist messages. Expected mph and degrees"""
+    """Updates the input twist message to buffer"""
+    global msg_twist_buffer, last_twist_time
+
+    last_twist_time = rospy.Time.now()  # Keep track of last message time
+    msg_twist_buffer = Twist_msg  # Update twist buffer global
+
+
+def publish_vehicle_controls(TimerEvent):
+    """Publish vehicle controls at a controlled rate"""
+    global msg_twist_buffer
+
+    if msg_twist_buffer is None:
+        # No new twist message received after timeout
+        return
+
+    if rospy.Time.now() - last_twist_time > rospy.Duration(config_.twist_timeout):
+        # Twist messages timed out, set twist buffer to None
+        msg_twist_buffer = None
+        return
 
     enable_dbw()
 
     # Speed -------------------------------------------------------------------
-    requested_speed = speed_limiter(Twist_msg.linear.x)
+    requested_speed = speed_limiter(msg_twist_buffer.linear.x)
     shift_gear_automatically(requested_speed)  # Handle gear shifting first
     # NOTE: if direction of speed is changed, braking to a stop will be handled while shifting gears
 
     accelerator, brakes = calculate_pedals(requested_speed)
-    publish_accelerator(pedal_percent=accelerator)
-    publish_brakes(pedal_percent=brakes)
+    publish_accelerator(pedal_percent=accelerator / 100.0)
+    publish_brakes(pedal_percent=brakes / 100.0)
 
     # Steering ----------------------------------------------------------------
     if config_.twist_uses_road_angle:
-        publish_steering(requested_road_angle=Twist_msg.angular.z)
+        publish_steering(requested_road_angle=msg_twist_buffer.angular.z)
     else:  # Use steering wheel angle
-        publish_steering(requested_steering_angle=Twist_msg.angular.z)
+        publish_steering(requested_steering_angle=msg_twist_buffer.angular.z)
 
     # Tuning Mode -------------------------------------------------------------
     if config_.tuning_mode:
@@ -259,7 +277,9 @@ def publish_brakes(*, pedal_percent: float):
     """Publish requested brake pedal value to the vehicle. Input is 0.0 to 1.0 however 0.50 is too much G force"""
 
     # Make sure it is within range
-    pedal_percent = max(0.0, min(config_.brake_max, pedal_percent))
+    brake_maximum = config_.brake_max if actor.speed > 1.0 else 0.3
+    # NOTE: 0.3 ~ 30% is more than enough for immediate braking at very low speeds
+    pedal_percent = max(0.0, min(brake_maximum, pedal_percent))
 
     # Make Brake message ------------------------------------------------------
     msg_brakes = BrakeCmd()
@@ -281,13 +301,13 @@ def stop_with_brakes():
 
     first_time = rospy.Time.now()
     brake_timeout = rospy.Duration(5)  # seconds
-    rate = 1 / config_.brake_ramp_hz
+    rate = rospy.Rate(config_.brake_ramp_hz)
     brake_value = 0.0
     while abs(actor.speed) > config_.speed_deadband or (rospy.Time.now() - first_time) < brake_timeout:
         # While not nearly stopped or within timeout, increase brakes gradually upto max value
         brake_value += 0.01 if brake_value < config_.brake_max else config_.brake_max
         publish_brakes(pedal_percent=brake_value)
-        rospy.sleep(rate)
+        rate.sleep()
 
 
 def publish_steering(*, requested_steering_angle: float = None, requested_road_angle: float = None):
@@ -371,6 +391,10 @@ while not rospy.is_shutdown() and not dyn_rcfg_initialized:
 
 # Define subscribers
 rospy.Subscriber(rospy.get_param("drive"), Twist, drive_twist_callback, queue_size=1)
+msg_twist_buffer = None  # Used for twist messages slower than control rate.
+last_twist_time = rospy.Time(0)
+rospy.Timer(rospy.Duration(1 / config_.control_rate_hz), publish_vehicle_controls)
+# NOTE: DBW's Optimal publishing rate >= 50Hz (10ms) with a (100ms) timeout
 actor = actor_tools.ActorStatusReader()
 
 # Define publishers
@@ -379,10 +403,14 @@ pub_brakes = rospy.Publisher(rospy.get_param("brakes"), BrakeCmd, queue_size=1)
 pub_steering = rospy.Publisher(rospy.get_param("steering"), SteeringCmd, queue_size=1)
 pub_gear = rospy.Publisher(rospy.get_param("gear"), GearCmd, queue_size=1)
 pub_enable_cmd = rospy.Publisher(rospy.get_param("enable"), Empty, queue_size=1)
-# NOTE: DBW's Expected publishing rate <= 50Hz (10ms) with a (100ms) timeout
 
 rospy.loginfo("actor_control node running.")
-rospy.spin()
+
+try:
+    rospy.spin()
+except rospy.ROSInterruptException:
+    rospy.loginfo("actor_control node shutting down.")
+    pass
 
 # End of ROS node -------------------------------------------------------------
 # -----------------------------------------------------------------------------
