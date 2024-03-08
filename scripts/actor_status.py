@@ -44,7 +44,7 @@ def report_accelerator_callback(ThrottleReport_msg):
     global accelerator_percent
 
     # Get pedal position as a percentage
-    accelerator_percent = round((ThrottleReport_msg.pedal_output * 100), 2)
+    accelerator_percent = ThrottleReport_msg.pedal_output * 100
     # NOTE: 20 - 80 percent range limited by the sensor
 
 
@@ -53,7 +53,7 @@ def report_brakes_callback(BrakeReport_msg):
     global brake_percent
 
     # Get pedal position as a percentage
-    brake_percent = round(((BrakeReport_msg.torque_input / 8000) * 100), 2)
+    brake_percent = (BrakeReport_msg.torque_input / 8000) * 100
     # NOTE: Max torque is 8kNm. input is measured in Nm when pedal is pressed.
 
 
@@ -63,9 +63,9 @@ def report_steering_callback(SteeringReport_msg):
 
     # Get steering wheel angle and convert to degrees then to road angle in 16.2:1 ratio
     steering_wheel_angle = math.degrees(SteeringReport_msg.steering_wheel_angle)  # Convert radians to degrees
-    road_angle = round((steering_wheel_angle / 16.2), 2)  # Convert steering wheel angle to drive wheel angle
+    road_angle = steering_wheel_angle / 16.2  # Convert steering wheel angle to drive wheel angle
     # Get speed in m/s and convert to mph
-    speed = round(SteeringReport_msg.speed * 2.23694, 2)  # Convert from m/s to mph
+    speed = SteeringReport_msg.speed * 2.23694  # Convert from m/s to mph
 
 
 def report_gear_callback(GearReport_msg):
