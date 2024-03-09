@@ -72,6 +72,7 @@ def publish_vehicle_controls(TimerEvent):
     if rospy.Time.now() - last_twist_time > rospy.Duration(config_.twist_timeout):
         # Twist messages timed out, set twist buffer to None
         msg_twist_buffer = None
+        rospy.logwarn("Timed out waiting for twist message")
         return
 
     enable_dbw()
@@ -85,6 +86,7 @@ def publish_vehicle_controls(TimerEvent):
     publish_accelerator(pedal_percent=accelerator / 100.0)
     publish_brakes(pedal_percent=brakes / 100.0)
 
+    # TODO: This does not work for some reason
     # Steering ----------------------------------------------------------------
     if config_.twist_uses_road_angle:
         publish_steering(requested_road_angle=msg_twist_buffer.angular.z)
@@ -93,6 +95,7 @@ def publish_vehicle_controls(TimerEvent):
 
     # Tuning Mode -------------------------------------------------------------
     if config_.tuning_mode:
+        pass
         rospy.loginfo(f"A = {accelerator:8.2f}, B = {brakes:8.2f}, Diff = {(requested_speed - actor.speed):8.2f}")
         # NOTE: output="screen" is required in the launch file
 
@@ -220,14 +223,15 @@ def calculate_pedals(requested_speed: float):
     accelerator = 0
     brakes = 0
 
-    if requested_speed < abs(config_.speed_deadband):  # Requested Stopping the vehicle
+    if abs(requested_speed) < config_.speed_deadband:  # Requested Stopping the vehicle
         stop_with_brakes()
         return accelerator, brakes
 
     speed_difference = requested_speed - actor.speed
 
-    if abs(actor.speed) > config_.speed_deadband and abs(speed_difference) > config_.speed_deadband:
+    if abs(speed_difference) > config_.speed_deadband:
         # Speed is not near zero and speed difference is also not near zero
+        # TODO: Removed zero speed check, erify logic
 
         if speed_difference > config_.acceleration_threshold:
             # Need to Accelerate
@@ -256,21 +260,22 @@ def publish_accelerator(*, pedal_percent: float):
 
     pedal_percent = max(0.0, min(1.0, pedal_percent))
 
-    if 0.2 < pedal_percent > 0.8:  # 0.2 is physical minimum and 0.8 is physical maximum
-        # Accept values however no need to publish out of physical range
-        # Make Accelerator message --------------------------------------------
-        msg_accelerator = ThrottleCmd()
-        msg_accelerator.pedal_cmd = pedal_percent
-        msg_accelerator.pedal_cmd_type = ThrottleCmd.CMD_PERCENT  # 0.0 to 1.0
-        msg_accelerator.enable = False  # Enable Throttle, required 'True' for control via ROS
+    # if 0.2 < pedal_percent > 0.8:  # 0.2 is physical minimum and 0.8 is physical maximum
+    # Accept values however no need to publish out of physical range
 
-        # Do not use these without completely understanding how they work on the hardware level:
-        msg_accelerator.clear = False
-        msg_accelerator.ignore = False
-        msg_accelerator.count = 0
-        # ---------------------------------------------------------------------
+    # Make Accelerator message --------------------------------------------
+    msg_accelerator = ThrottleCmd()
+    msg_accelerator.pedal_cmd = pedal_percent
+    msg_accelerator.pedal_cmd_type = ThrottleCmd.CMD_PEDAL  # 0.2 to 0.8
+    msg_accelerator.enable = True  # Enable Throttle, required 'True' for control via ROS
 
-        pub_accelerator.publish(msg_accelerator)
+    # Do not use these without completely understanding how they work on the hardware level:
+    msg_accelerator.clear = False
+    msg_accelerator.ignore = False
+    msg_accelerator.count = 0
+    # ---------------------------------------------------------------------
+
+    pub_accelerator.publish(msg_accelerator)
 
 
 def publish_brakes(*, pedal_percent: float):
@@ -303,44 +308,51 @@ def stop_with_brakes():
     brake_timeout = rospy.Duration(5)  # seconds
     rate = rospy.Rate(config_.brake_ramp_hz)
     brake_value = 0.0
-    while abs(actor.speed) > config_.speed_deadband or (rospy.Time.now() - first_time) < brake_timeout:
+    while abs(actor.speed) > config_.speed_deadband and (rospy.Time.now() - first_time) < brake_timeout:
         # While not nearly stopped or within timeout, increase brakes gradually upto max value
         brake_value += 0.01 if brake_value < config_.brake_max else config_.brake_max
+        # TODO: This went over 0.4
         publish_brakes(pedal_percent=brake_value)
         rate.sleep()
+        rospy.loginfo(f"Braking pedal value = {brake_value:8.2f}")
 
 
 def publish_steering(*, requested_steering_angle: float = None, requested_road_angle: float = None):
     """Publish requested steering to the vehicle.
     Input can be desired degree road angle (-37 to 37) or steering angle (-600 to 600)"""
 
-    requested_steering_angle = (steering_limiter(road_angle=requested_road_angle)) or steering_limiter(
-        steering_wheel_angle=requested_steering_angle
-    )
+    # TODO: make this into if statement
+    requested_steering_angle = steering_limiter(road_angle=requested_road_angle)
 
-    difference = requested_steering_angle - actor.steering_wheel_angle
+    # or steering_limiter(
+    #     steering_wheel_angle=requested_steering_angle
+    # )
 
-    if abs(difference) > config_.steering_deadband:  # Avoid large steering angle difference
-        # Make steering message -----------------------------------------------
-        msg_steering = SteeringCmd()
-        msg_steering.steering_wheel_angle_cmd = math.radians(requested_steering_angle)
-        # radians (-600deg to 600deg for ACTor)
-        # NOTE: Output is the target steering angle in radians not an angle increment
-        # 16.2:1 steering to road angle ratio and 69 inch Ackerman wheelbase
-        msg_steering.enable = True  # Enable Steering, required 'True' for control via ROS
+    # difference = requested_steering_angle - actor.steering_wheel_angle
+    # NOTE: This is not used at the moment
+    # if abs(difference) < config_.steering_deadband:  # Avoid large steering angle difference
+    #     difference = 0
 
-        # Do NOT use these without completely understanding how they work on the hardware level:
-        msg_steering.cmd_type = SteeringCmd.CMD_ANGLE  # CAUTION: Torque mode disables lateral acceleration limits
-        msg_steering.steering_wheel_angle_velocity = 0.0  # rad/s
-        msg_steering.steering_wheel_torque_cmd = 0.0  # Nm
-        msg_steering.clear = False
-        msg_steering.ignore = False
-        msg_steering.calibrate = False
-        msg_steering.quiet = False
-        msg_steering.count = 0
-        # ---------------------------------------------------------------------
+    # Make steering message -----------------------------------------------
+    msg_steering = SteeringCmd()
+    msg_steering.steering_wheel_angle_cmd = math.radians(requested_steering_angle)
+    # radians (-600deg to 600deg for ACTor)
+    # NOTE: Output is the target steering angle in radians not an angle increment
+    # 16.2:1 steering to road angle ratio and 69 inch Ackerman wheelbase
+    msg_steering.enable = True  # Enable Steering, required 'True' for control via ROS
 
-        pub_steering.publish(msg_steering)
+    # Do NOT use these without completely understanding how they work on the hardware level:
+    msg_steering.cmd_type = SteeringCmd.CMD_ANGLE  # CAUTION: Torque mode disables lateral acceleration limits
+    msg_steering.steering_wheel_angle_velocity = 0.0  # rad/s
+    msg_steering.steering_wheel_torque_cmd = 0.0  # Nm
+    msg_steering.clear = False
+    msg_steering.ignore = False
+    msg_steering.calibrate = False
+    msg_steering.quiet = False
+    msg_steering.count = 0
+    # ---------------------------------------------------------------------
+
+    pub_steering.publish(msg_steering)
 
 
 def enable_dbw():
@@ -358,7 +370,7 @@ def speed_limiter(speed) -> float:
     return lower_limit if speed < lower_limit else upper_limit if speed > upper_limit else speed
 
 
-def steering_limiter(*, steering_wheel_angle: float = None, road_angle: float = None) -> float:
+def steering_limiter(*, steering_wheel_angle: float = 0.0, road_angle: float = 0.0) -> float:
     """Limit steering between lower and upper limits"""
 
     angle = (road_angle * 16.2) or steering_wheel_angle  # 16.2:1 is ACTor steering to road angle ratio
