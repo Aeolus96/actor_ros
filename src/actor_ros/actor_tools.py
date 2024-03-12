@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
 
-# import math  # Math Library
-
-import dictdatabase as DDB  # Database API
-import rospy  # ROS Python API
-
 # from dbw_polaris_msgs.msg import (  # Drive By Wire Messages
 #     BrakeCmd,
 #     BrakeReport,
@@ -29,46 +24,40 @@ import rospy  # ROS Python API
 
 
 class ActorStatusReader:
-    """ACTor Status Reader subscribes to ACTor status messages and stores the latest values"""
+    """ACTor Status Reader subscribes to ACTor status messages and stores the latest values.
+    Use read_from_redis=True if running outside a ROS node"""
 
-    def __init__(self, read_from_db=False):
+    def __init__(self, read_from_redis=False):
         """Initialize the ACTor Status Message Reader"""
-        from actor_ros.msg import ActorStatus  # Custom ROS Message
 
-        self.is_simulated = None
-        self.is_autonomous = None
-        self.is_tele_operated = None
+        self.is_simulated = False
+        self.is_autonomous = False
+        self.is_tele_operated = False
         self.accelerator_percent = 0
         self.brake_percent = 0
         self.steering_wheel_angle = 0
         self.road_angle = 0
         self.speed = 0
-        self.gear = None
-        self.is_enabled = None
-        self.requested_speed = None
-        self.requested_road_angle = None
+        self.gear = "NONE"
+        self.is_enabled = False
+        self.requested_speed = 0
+        self.requested_road_angle = 0
 
-        if read_from_db:  # In case status is read from a database, do not initialize the subscriber.
-            # Initialize a JSON dictionary database named "actor_status"
-            database_dictionary = {
-                "is_simulated": self.is_simulated,
-                "is_autonomous": self.is_autonomous,
-                "is_tele_operated": self.is_tele_operated,
-                "accelerator_percent": self.accelerator_percent,
-                "brake_percent": self.brake_percent,
-                "steering_wheel_angle": self.steering_wheel_angle,
-                "road_angle": self.road_angle,
-                "speed": self.speed,
-                "gear": self.gear,
-                "is_enabled": self.is_enabled,
-                "requested_speed": self.requested_speed,
-                "requested_road_angle": self.requested_road_angle,
-            }
-            DDB.at("actor_status").create(database_dictionary, force_overwrite=True)
-            # NOTE: database reads need to called manually using the database_callback()
+        if read_from_redis:  # In case status is read from a database, do not initialize the subscriber.
+            # NOTE: updates need to be called manually using the redis_callback() function
+            try:
+                self.connect_to_redis()
+            except ConnectionError as e:
+                print(e)
+                return e
 
-        else:
-            # Start a thread to continuously read status messages
+        else:  # Start a thread to continuously read status messages from ROS
+            # NOTE: This requires the instance to be created inside a ROS node
+
+            import rospy  # ROS Python API
+
+            from actor_ros.msg import ActorStatus  # Custom ROS Message
+
             rospy.Subscriber(rospy.get_param("status"), ActorStatus, self.actor_status_callback, queue_size=1)
             # NOTE: topic accesed from the 'actor/' namespace by default
 
@@ -93,28 +82,55 @@ class ActorStatusReader:
         self.requested_speed = ActorStatus_msg.requested_speed
         self.requested_road_angle = ActorStatus_msg.requested_road_angle
 
-    def database_callback(self) -> None:
-        """Callback to get the latest ACTor Status values from the dictionary database"""
+    def connect_to_redis(self) -> bool:
+        """Connect to Redis server and read the latest ACTor Status values"""
 
-        # Get dictionary from database "actor_status"
-        with DDB.at("actor_status").session as (session, db_dict):
-            # States
-            self.is_simulated = db_dict["is_simulated"]
-            self.is_autonomous = db_dict["is_autonomous"]
-            self.is_tele_operated = db_dict["is_tele_operated"]
+        import time
 
-            # Hardware information
-            self.accelerator_percent = db_dict["accelerator_percent"]
-            self.brake_percent = db_dict["brake_percent"]
-            self.steering_wheel_angle = db_dict["steering_wheel_angle"]
-            self.road_angle = db_dict["road_angle"]
-            self.speed = db_dict["speed"]
-            self.gear = db_dict["gear"]
+        import redis  # Redis Key Value Store Python API
 
-            # Control information
-            self.is_enabled = db_dict["is_enabled"]
-            self.requested_speed = db_dict["requested_speed"]
-            self.requested_road_angle = db_dict["requested_road_angle"]
+        attempts = 0
+        max_attempts = 3
+        while attempts < max_attempts:
+            try:
+                # Attempt to connect to Redis server run from the status node
+                # NOTE: Using default settings for Redis. Change if required...
+                self.redis = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+                self.redis_callback()  # Read values from redis server once
+                return True  # Connection successful
+            except redis.ConnectionError as e:
+                print(f"Failed to connect to Redis server: {e}")
+                attempts += 1
+                time.sleep(2)  # Wait for 2 seconds before retrying
+        print("Failed to connect to Redis server after multiple attempts. Exiting.")
+        raise ConnectionError("Failed to connect to Redis server after multiple attempts.")
+
+    @staticmethod
+    def to_bool(value: str) -> bool:
+        """Converts string value to boolean"""
+        return value.lower() == "true"
+
+    @staticmethod
+    def to_float(value: str) -> float:
+        """Converts string value to float"""
+        return float(value) if value is not None else 0
+
+    def redis_callback(self) -> None:
+        """Callback to get the latest ACTor Status values from Redis server"""
+
+        # Read values from redis server - NOTE: type conversion is needed since Redis stores values as strings
+        self.is_simulated = self.to_bool(self.redis.get("is_simulated"))
+        self.is_autonomous = self.to_bool(self.redis.get("is_autonomous"))
+        self.is_tele_operated = self.to_bool(self.redis.get("is_tele_operated"))
+        self.accelerator_percent = self.to_float(self.redis.get("accelerator_percent"))
+        self.brake_percent = self.to_float(self.redis.get("brake_percent"))
+        self.steering_wheel_angle = self.to_float(self.redis.get("steering_wheel_angle"))
+        self.road_angle = self.to_float(self.redis.get("road_angle"))
+        self.speed = self.to_float(self.redis.get("speed"))
+        self.gear = self.redis.get("gear")
+        self.is_enabled = self.to_bool(self.redis.get("is_enabled"))
+        self.requested_speed = self.to_float(self.redis.get("requested_speed"))
+        self.requested_road_angle = self.to_float(self.redis.get("requested_road_angle"))
 
     def simulate_for_testing(self) -> None:
         """Simulate variables for testing purposes. Used to test the GUI"""
@@ -132,6 +148,8 @@ class ActorStatusReader:
         self.requested_speed = 3.45
         self.requested_road_angle = -9.0
 
+        # NOTE: These values can be randomized if needed
+
     # End of class ------------------------
 
 
@@ -148,8 +166,95 @@ class EStopManager:
     def publish_e_stop(self):
         pass
 
+    # End of class ------------------------
 
-# TODO: Script Player
+
+class ScriptPlayer:
+    """Executes Python scripts as a subprocess."""
+
+    def __init__(self, directory: str):
+        """Initialize the Script Player"""
+        self.active_directory = directory  # Full path to the directory
+        self.file_list = ""
+
+        self.selected_file = ""  # Name of the selected file with extension
+        self.process = None
+        self.is_running = False
+        self.output_text = ""
+
+    def __del__(self):
+        """Cleanup method"""
+        self.stop_script()
+
+    def load_files(self):
+        """Make a list of files in the active directory"""
+        import os
+
+        self.file_list = [file for file in os.listdir(self.active_directory) if file.endswith(".py")]
+        return "Directory loaded"
+
+    def execute(self):
+        """Execute the selected file in a separate process"""
+        import subprocess
+        from threading import Thread
+
+        if self.is_running:
+            return "A script is already running. Please stop it first."
+
+        if self.selected_file == "":
+            return "Please select a script to execute"
+
+        # Set the running flag and Clear the output text to allow new output
+        self.is_running = True
+        self.output_text = ""
+
+        try:
+            self.process = subprocess.Popen(
+                ["python3", f"{self.active_directory}/{self.selected_file}"],
+                shell=True,  # Needed to source ROS using .bashrc
+                stdout=subprocess.PIPE,  # Captures print() output # NOTE: ROS logging should be used to maintain logs
+                stderr=subprocess.PIPE,  # Captures Raised Errors and Exceptions
+                universal_newlines=True,
+                text=True,
+                bufsize=1,
+            )
+
+            # Read output streams in separate threads and combine them into output_text
+            Thread(target=self.read_output, args=(self.process.stdout,), daemon=True).start()
+            Thread(target=self.read_output, args=(self.process.stderr,), daemon=True).start()
+            return "Script finished running"
+
+        except Exception as e:
+            self.is_running = False
+            return f"Error: {e}"
+
+    def read_output(self, stream):
+        """Read output stream and add lines into output_text
+        stream is direct input stream from stdout or stderr"""
+
+        for line in stream:
+            self.output_text += line
+
+        # When EOF is reached (process is terminated), set the running flag to False
+        self.is_running = False
+
+    def stop_script(self, timeout=5.0):
+        """Stop the currently running script"""
+
+        if self.process and self.is_running:
+            self.process.terminate()  # SIGTERM
+            self.process.wait(timeout=timeout)
+            if self.process.poll() is None:  # If process is still running
+                self.process.terminate()  # Forcefully kill the process - SIGKILL
+                self.process.wait()
+                self.is_running = False
+                return "Script stopped"
+            else:
+                self.is_running = False
+                return "Script stopped"
+
+    # End of class ------------------------
+
 
 # TODO: Add Classes to wrap functionality of the ACTor
 # These can be separate files however, the functionality of directly accessing data is what is needed here

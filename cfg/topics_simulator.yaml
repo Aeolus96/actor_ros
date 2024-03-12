@@ -7,6 +7,7 @@ steering: /simulator/steering_cmd
 enable: /simulator/enable
 disable: /simulator/disable
 gear: /simulator/gear_cmd
+ulc: /simulator/ulc_cmd
 
 # Sensors this node subscribes to (published by simulator)
 report_accelerator: /simulator/throttle_report

@@ -7,11 +7,14 @@ from nicegui import ui  # NiceGUI library
 
 # ROS I/O -------------------------------------------------------------------------------------------------------------
 # NOTE: using a rospy node should be avoided in this python script.
-# Since NiceGUI and ROS1 both requrie the main thread to run, this is a bad idea and will cause errors
+# Since NiceGUI and ROS both requrie the main thread to run, this is a bad idea and will cause event handling errors
 
 # Read ACTor Status - Subscribe to ACTor Status Messages and constantly update using dictdatabase
-actor = actor_tools.ActorStatusReader(read_from_db=True)
-actor.simulate_for_testing()  # Simulate variables for testing purposes
+actor = actor_tools.ActorStatusReader(read_from_redis=True)
+
+# Choose EITHER fake or simulated values for testing purposes:
+ui.timer(interval=(1 / 60), callback=actor.redis_callback())  # Update status from database with a timer
+# actor.simulate_for_testing()  # Simulate variables for testing purposes
 
 # Path to scripts folder
 script_folder = rospkg.RosPack().get_path("actor_ros") + "/igvc_scripts/"
@@ -185,6 +188,4 @@ with ui.page_sticky(position="bottom", x_offset=20, y_offset=20):
 # Run GUI -------------------------------------------------------------------------------------------------------------
 # NOTE: Needs to be the last element to run the GUI.
 # NOTE: If there are any changes made to this script while it is running, it will restart automatically
-
-ui.timer((1 / 60), lambda: actor.database_callback())  # Update status from database with a timer
 ui.run(dark=True, reload=True)

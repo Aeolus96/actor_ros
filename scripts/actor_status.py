@@ -19,7 +19,10 @@ License: MIT
 """
 
 import math  # Math Library
+import subprocess  # Subprocess Python API
+import time  # Time Python API
 
+import redis  # Redis Key Value Store Python API
 import rospy  # ROS Python API
 from actor_ros.msg import ActorStatus  # Custom ROS Message
 
@@ -88,9 +91,10 @@ def report_gear_callback(GearReport_msg):
 
 def drive_twist_callback(Twist_msg):
     """Report the requested twist values from callback"""
-    global requested_speed, requested_road_angle
+    global requested_speed, requested_road_angle, last_twist_time
 
-    # TODO: Implement timeout to 0
+    last_twist_time = rospy.Time.now()  # Keep track of last message time
+
     # Get requested speed and road angle
     requested_speed = Twist_msg.linear.x
     requested_road_angle = Twist_msg.angular.z
@@ -113,10 +117,34 @@ def enabled_callback(Enabled_msg):
     pass
 
 
+def write_to_redis(status_msg):
+    """Write statuses to redis server"""
+
+    # Write values to redis server
+    # NOTE: Values are written to redis server as strings
+    redis.set("is_simulated", status_msg.is_simulated)
+    redis.set("is_autonomous", status_msg.is_autonomous)
+    redis.set("is_tele_operated", status_msg.is_tele_operated)
+    redis.set("accelerator_percent", status_msg.accelerator_percent)
+    redis.set("brake_percent", status_msg.brake_percent)
+    redis.set("steering_wheel_angle", status_msg.steering_wheel_angle)
+    redis.set("road_angle", status_msg.road_angle)
+    redis.set("gear", status_msg.gear)
+    redis.set("speed", status_msg.speed)
+    redis.set("is_enabled", status_msg.is_enabled)
+    redis.set("requested_speed", status_msg.requested_speed)
+    redis.set("requested_road_angle", status_msg.requested_road_angle)
+
+
 def publish_status(TimerEvent):
     """Create and publish status message. Rate controlled by ropy.Timer"""
     global accelerator_percent, brake_percent, road_angle, speed, speed_limit, gear
     global requested_speed, requested_road_angle, enabled
+
+    # Check if Twist message has timed out - set to 0 if so
+    if rospy.Time.now() - last_twist_time > rospy.Duration(twist_timeout):
+        requested_speed = 0
+        requested_road_angle = 0
 
     # Create and publish status message
     status = ActorStatus()
@@ -141,12 +169,19 @@ def publish_status(TimerEvent):
     status.requested_road_angle = round(requested_road_angle, 3)
 
     pub_status.publish(status)
+    write_to_redis(status)
 
 
 # End of Callbacks ------------------------------------------------------------
 
 # Start of ROS node -----------------------------------------------------------
 rospy.init_node("actor_status")  # Namespace is set in launch file. '/actor' by default
+
+# Start Redis Key-Value Store Server
+redis_server_command = "redis-server"
+redis_server_process = subprocess.Popen(redis_server_command.split())
+rospy.sleep(2)  # Wait for redis server to start
+redis = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)  # Connect to redis server
 rospy.sleep(2)  # Sleep for 2 seconds before starting
 
 # Initialize global variables in a dictionary
@@ -179,6 +214,8 @@ rospy.Subscriber(rospy.get_param("report_brakes"), BrakeReport, report_brakes_ca
 rospy.Subscriber(rospy.get_param("report_steering"), SteeringReport, report_steering_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("report_gear"), GearReport, report_gear_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("drive"), Twist, drive_twist_callback, queue_size=1)
+twist_timeout = 0.1  # 100ms
+last_twist_time = rospy.Time(0)
 rospy.Timer(rospy.Duration(1.0), speed_limit_callback)  # Check speed limit every 1 second
 
 # Status publishers
@@ -190,6 +227,7 @@ rospy.loginfo("actor_status node running.")
 try:
     rospy.spin()
 except rospy.ROSInterruptException:
+    redis_server_process.terminate()
     pass
 
 # End of ROS node -------------------------------------------------------------
