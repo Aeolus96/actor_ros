@@ -27,8 +27,10 @@ class ActorStatusReader:
     """ACTor Status Reader subscribes to ACTor status messages and stores the latest values.
     Use read_from_redis=True if running outside a ROS node"""
 
-    def __init__(self, read_from_redis=False):
+    def __init__(self, read_from_redis=False, simulate_for_testing=False):
         """Initialize the ACTor Status Message Reader"""
+
+        self.simulated_values = simulate_for_testing
 
         self.is_simulated = False
         self.is_autonomous = False
@@ -42,6 +44,22 @@ class ActorStatusReader:
         self.is_enabled = False
         self.requested_speed = 0
         self.requested_road_angle = 0
+        self.e_stop_state = False
+        self.e_stop_heartbeat = False
+        self.e_stop_physical_button = False
+        self.e_stop_wireless_button = False
+
+        # e_stop/state - Bool
+        # e_stop/heartbeat - Header
+        # e_stop/physical_button - Bool
+        # e_stop/wireless_button - Bool
+
+        # e_stop/trigger - Empty
+        # e_stop/reset - Empty
+
+        # Values used only for GUI
+        self.gui_gear = self.gear[0]
+        self.gui_e_stop_text = "STOP" if self.e_stop_state else "RESET"
 
         if read_from_redis:  # In case status is read from a database, do not initialize the subscriber.
             # NOTE: updates need to be called manually using the redis_callback() function
@@ -60,6 +78,18 @@ class ActorStatusReader:
 
             rospy.Subscriber(rospy.get_param("status"), ActorStatus, self.actor_status_callback, queue_size=1)
             # NOTE: topic accesed from the 'actor/' namespace by default
+
+    def __call__(self):
+        """Call method to update the latest ACTor Status values"""
+        if self.simulated_values:
+            self.simulate_for_testing()
+        else:
+            self.redis_callback()
+
+    def __del__(self):
+        """Cleanup method. Closes Redis connection"""
+        if hasattr(self, "redis"):
+            self.redis.close()
 
     def actor_status_callback(self, ActorStatus_msg) -> None:
         """Callback to get the latest ACTor Status message"""
@@ -96,6 +126,7 @@ class ActorStatusReader:
                 # Attempt to connect to Redis server run from the status node
                 # NOTE: Using default settings for Redis. Change if required...
                 self.redis = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+                time.sleep(2)  # Wait for 2 seconds for status node to start
                 self.redis_callback()  # Read values from redis server once
                 return True  # Connection successful
             except redis.ConnectionError as e:
@@ -108,6 +139,8 @@ class ActorStatusReader:
     @staticmethod
     def to_bool(value: str) -> bool:
         """Converts string value to boolean"""
+        if value is None:
+            return False
         return value.lower() == "true"
 
     @staticmethod
@@ -134,19 +167,20 @@ class ActorStatusReader:
 
     def simulate_for_testing(self) -> None:
         """Simulate variables for testing purposes. Used to test the GUI"""
+        import random
 
         self.is_simulated = False
         self.is_autonomous = False
         self.is_tele_operated = False
-        self.accelerator_percent = 35.05
-        self.brake_percent = 12.23
-        self.steering_wheel_angle = -194.4
-        self.road_angle = -12.1
-        self.speed = 2.34
-        self.gear = "DRIVE"
+        self.accelerator_percent = random.uniform(20, 80)  # 35.05
+        self.brake_percent = random.uniform(0, 50)  # 12.23
+        self.steering_wheel_angle = random.uniform(-600, 600)  # -194.4
+        self.road_angle = random.uniform(-37.5, 37.5)  # -12.1
+        self.speed = random.uniform(0, 15)  # 2.34
+        self.gear = random.choice(["PARK", "REVERSE", "NEUTRAL", "DRIVE"])  # "DRIVE"
         self.is_enabled = True
-        self.requested_speed = 3.45
-        self.requested_road_angle = -9.0
+        self.requested_speed = random.uniform(0, 15)  # 3.45
+        self.requested_road_angle = random.uniform(-37.5, 37.5)  # -9.0
 
         # NOTE: These values can be randomized if needed
 
@@ -155,16 +189,45 @@ class ActorStatusReader:
 
 class EStopManager:
     """Manager for E-Stop functionality.
-    E-Stop can be triggered from anywhere.
-    Just import this function and use it in your ROS node"""
+    E-Stop can be triggered from anywhere."""
+
+    # e_stop/state - Bool
+    # e_stop/physical_button - Bool
+    # e_stop/wireless_button - Bool
+    # e_stop/trigger - Empty
+    # e_stop/reset - Empty
+    # e_stop/heartbeat - Header
 
     def __init__(self):
-        """Initialize the E-Stop Manager for any ROS script"""
-        # TODO: use direct os calls
-        pass
+        """Initialize the E-Stop Manager for any script"""
+        self.e_stop_topic = "/actor/e_stop/trigger"
+        self.e_stop_reset_topic = "/actor/e_stop/reset"
 
-    def publish_e_stop(self):
-        pass
+    def __call__(self) -> bool:
+        """Call method to trigger E-Stop using the instance"""
+        return self.trigger_e_stop()
+
+    def trigger_e_stop(self) -> bool:
+        """Trigger E-Stop by publishing an empty message to the E-Stop topic"""
+
+        return self.send_command(f"rostopic pub {self.e_stop_topic} std_msgs/Empty -1")
+
+    def reset(self):
+        """Reset E-Stop by publishing an empty message to the E-Stop reset topic"""
+
+        return self.send_command(f"rostopic pub {self.e_stop_reset_topic} std_msgs/Empty -1")
+
+    def send_command(self, command: str) -> bool:
+        """Send a custom command to the E-Stop topic"""
+        import os
+
+        try:
+            os.system(command)
+            print("Command sent successfully")
+            return True
+        except Exception as e:
+            print(f"Failed to send command: {e}")
+            return False
 
     # End of class ------------------------
 
@@ -191,6 +254,7 @@ class ScriptPlayer:
         import os
 
         self.file_list = [file for file in os.listdir(self.active_directory) if file.endswith(".py")]
+        self.selected_file = ""
         return "Directory loaded"
 
     def execute(self):
@@ -244,14 +308,19 @@ class ScriptPlayer:
         if self.process and self.is_running:
             self.process.terminate()  # SIGTERM
             self.process.wait(timeout=timeout)
+
             if self.process.poll() is None:  # If process is still running
                 self.process.terminate()  # Forcefully kill the process - SIGKILL
                 self.process.wait()
                 self.is_running = False
                 return "Script stopped"
+
             else:
                 self.is_running = False
                 return "Script stopped"
+
+        else:
+            return "No script is currently running"
 
     # End of class ------------------------
 

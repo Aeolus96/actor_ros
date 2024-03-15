@@ -3,7 +3,7 @@
 """
 ROS Node for Monitoring Vehicle Status. This is a simple read multiple topics, convert values to human readable units, and publish to a single custom ROS message that is published at 100Hz.
 
-Purpose is to be used in conjunction with the ACTor GUI and other ACTor nodes that can efficiently use a single high speed message with all the information needed for driving the vehicle. This significantly reduces Python processing overhead from each node that needs to read these topics and convert values to human readable units before using them.
+Purpose is to be used in conjunction with the ACTor GUI and other ACTor nodes that can efficiently use a single high speed message with all the information needed for montoring the vehicle. This significantly reduces Python processing overhead from each node that needs to read multiples of these topics and convert values to human readable units before using them.
 
 This script is part of a larger ROS-based system for controlling and monitoring a vehicle's behavior.
 
@@ -11,6 +11,7 @@ Dependencies:
 - ROS (Robot Operating System)
 - actor_ros package (for custom ROS messages)
 - dbw_polaris_msgs package (for Drive By Wire messages)
+- Redis Key Value Store
 
 Authors:
 - [Devson Butani] <dbutani@ltu.edu>
@@ -39,7 +40,7 @@ from std_msgs.msg import Bool  # ROS Messages
 # End of Imports --------------------------------------------------------------
 
 
-# Start of Callbacks ----------------------------------------------------------
+# Start of Callbacks and Functions --------------------------------------------
 
 
 def report_accelerator_callback(ThrottleReport_msg):
@@ -114,7 +115,34 @@ def enabled_callback(Enabled_msg):
 
     # Get enable state
     enabled = Enabled_msg.data
-    pass
+
+
+def estop_state_callback(msg):
+    """Report the estop state"""
+    global estop_state
+
+    estop_state = msg.data
+
+
+def estop_physical_button_callback(msg):
+    """Report the estop physical button state"""
+    global estop_physical_button
+
+    estop_physical_button = msg.data
+
+
+def estop_wireless_button_callback(msg):
+    """Report the estop wireless button state"""
+    global estop_wireless_button
+
+    estop_wireless_button = msg.data
+
+
+def estop_software_button_callback(msg):
+    """Report the estop software button state"""
+    global estop_software_button
+
+    estop_software_button = msg.data
 
 
 def write_to_redis(status_msg):
@@ -122,24 +150,29 @@ def write_to_redis(status_msg):
 
     # Write values to redis server
     # NOTE: Values are written to redis server as strings
-    redis.set("is_simulated", status_msg.is_simulated)
-    redis.set("is_autonomous", status_msg.is_autonomous)
-    redis.set("is_tele_operated", status_msg.is_tele_operated)
+    redis.set("is_simulated", str(status_msg.is_simulated))
+    redis.set("is_autonomous", str(status_msg.is_autonomous))
+    redis.set("is_tele_operated", str(status_msg.is_tele_operated))
     redis.set("accelerator_percent", status_msg.accelerator_percent)
     redis.set("brake_percent", status_msg.brake_percent)
     redis.set("steering_wheel_angle", status_msg.steering_wheel_angle)
     redis.set("road_angle", status_msg.road_angle)
     redis.set("gear", status_msg.gear)
     redis.set("speed", status_msg.speed)
-    redis.set("is_enabled", status_msg.is_enabled)
+    redis.set("is_enabled", str(status_msg.is_enabled))
     redis.set("requested_speed", status_msg.requested_speed)
     redis.set("requested_road_angle", status_msg.requested_road_angle)
+    redis.set("estop_state", str(status_msg.estop_state))
+    redis.set("estop_physical_button", str(status_msg.estop_physical_button))
+    redis.set("estop_wireless_button", str(status_msg.estop_wireless_button))
+    redis.set("estop_software_button", str(status_msg.estop_software_button))
 
 
 def publish_status(TimerEvent):
     """Create and publish status message. Rate controlled by ropy.Timer"""
     global accelerator_percent, brake_percent, road_angle, speed, speed_limit, gear
     global requested_speed, requested_road_angle, enabled
+    global estop_state, estop_physical_button, estop_wireless_button, estop_software_button
 
     # Check if Twist message has timed out - set to 0 if so
     if rospy.Time.now() - last_twist_time > rospy.Duration(twist_timeout):
@@ -167,24 +200,36 @@ def publish_status(TimerEvent):
     status.speed_limit = round(speed_limit, 3)
     status.requested_speed = round(requested_speed, 3)
     status.requested_road_angle = round(requested_road_angle, 3)
+    # set to 0 to prevent keeping memory of old values.
+    requested_speed = 0
+    requested_road_angle = 0
+
+    # E-Stop
+    status.estop_state = estop_state
+    status.estop_physical_button = estop_physical_button
+    status.estop_wireless_button = estop_wireless_button
+    status.estop_software_button = estop_software_button
 
     pub_status.publish(status)
     write_to_redis(status)
 
 
-# End of Callbacks ------------------------------------------------------------
+# End of Callbacks and Functions ----------------------------------------------
+
 
 # Start of ROS node -----------------------------------------------------------
 rospy.init_node("actor_status")  # Namespace is set in launch file. '/actor' by default
 
-# Start Redis Key-Value Store Server
+
+# Start Redis Key-Value Store Server -----
 redis_server_command = "redis-server"
 redis_server_process = subprocess.Popen(redis_server_command.split())
 rospy.sleep(2)  # Wait for redis server to start
 redis = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)  # Connect to redis server
 rospy.sleep(2)  # Sleep for 2 seconds before starting
 
-# Initialize global variables in a dictionary
+
+# Initialize global variables in a dictionary -----
 globals_dict = {
     "accelerator_percent": 0.0,
     "brake_percent": 0.0,
@@ -196,19 +241,27 @@ globals_dict = {
     "requested_speed": 0.0,
     "requested_road_angle": 0.0,
     "enabled": False,
+    "estop_state": False,
+    "estop_physical_button": False,
+    "estop_wireless_button": False,
+    "estop_software_button": False,
 }
 
 # Make all variables global
 globals().update(globals_dict)
-
 
 # Get one time parameters and topics
 is_simulated = rospy.get_param("is_simulated")
 topic_status = rospy.get_param("status")
 speed_limit = rospy.get_param("speed_limit", -1.0)  # incase control node's dynamic reconfigure is not loaded yet
 
-# Define subscribers
+
+# Define subscribers -----
 rospy.Subscriber(rospy.get_param("enabled"), Bool, enabled_callback, queue_size=1)
+rospy.Subscriber(rospy.get_param("estop_state"), Bool, estop_state_callback, queue_size=1)
+rospy.Subscriber(rospy.get_param("estop_physical_button"), Bool, estop_physical_button_callback, queue_size=1)
+rospy.Subscriber(rospy.get_param("estop_wireless_button"), Bool, estop_wireless_button_callback, queue_size=1)
+rospy.Subscriber(rospy.get_param("estop_software_button"), Bool, estop_software_button_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("report_accelerator"), ThrottleReport, report_accelerator_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("report_brakes"), BrakeReport, report_brakes_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("report_steering"), SteeringReport, report_steering_callback, queue_size=1)

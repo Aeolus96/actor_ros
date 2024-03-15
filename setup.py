@@ -17,7 +17,7 @@ setup_args = generate_distutils_setup(
     # https://github.com/ros/rosdistro/blob/master/rosdep/python.yaml
     # example: <run_depend>python-ws4py-pip</run_depend>
     # if not found in rosdistro list, install manually...
-    install_requires=["python-rospkg", "python3-simple-pid-pip"],
+    install_requires=["python-rospkg"],
 )
 
 setup(**setup_args)

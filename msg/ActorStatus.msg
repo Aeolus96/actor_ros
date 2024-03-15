@@ -18,3 +18,9 @@ bool is_enabled                 # Actor ROS to hardware control enabled
 float32 speed_limit             # software capped maximum speed
 float32 requested_speed         # Requested speed in mph
 float32 requested_road_angle    # Requested road angle in degrees
+
+# E-Stop Status
+bool estop_state                # E-Stop state
+bool estop_physical_button      # E-Stop physical button
+bool estop_wireless_button      # E-Stop wireless button
+bool estop_software_button      # E-Stop software button

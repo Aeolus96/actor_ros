@@ -2,7 +2,8 @@
 
 import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
 import rospkg  # ROS Package Utilities
-from local_file_picker import local_file_picker  # local_file_picker (NiceGUI example)
+
+# from local_file_picker import local_file_picker  # local_file_picker (NiceGUI example)
 from nicegui import ui  # NiceGUI library
 
 # ROS I/O -------------------------------------------------------------------------------------------------------------
@@ -10,15 +11,21 @@ from nicegui import ui  # NiceGUI library
 # Since NiceGUI and ROS both requrie the main thread to run, this is a bad idea and will cause event handling errors
 
 # Read ACTor Status - Subscribe to ACTor Status Messages and constantly update using dictdatabase
-actor = actor_tools.ActorStatusReader(read_from_redis=True)
+# NOTE: Choose EITHER redis or simulated values for testing purposes
+# Redis -----------------------------------------
+# actor = actor_tools.ActorStatusReader(read_from_redis=True)
+# ui.timer(interval=(1 / 60), callback=lambda: actor())  # Update status from database with a timer
+# Simulated Values ------------------------------
+actor = actor_tools.ActorStatusReader(read_from_redis=True, simulate_for_testing=True)
+ui.timer(interval=(1), callback=lambda: actor())  # Update status from database with a timer
 
-# Choose EITHER fake or simulated values for testing purposes:
-ui.timer(interval=(1 / 60), callback=actor.redis_callback())  # Update status from database with a timer
-# actor.simulate_for_testing()  # Simulate variables for testing purposes
+# E-STOP ----------------------------------------
+e_stop = actor_tools.EStopManager()
 
-# Path to scripts folder
-script_folder = rospkg.RosPack().get_path("actor_ros") + "/igvc_scripts/"
-
+# Script Player ---------------------------------
+# Using rospkg to get the full path to the directory containing the scripts
+script_player = actor_tools.ScriptPlayer(rospkg.RosPack().get_path("actor_ros") + "/igvc_scripts/")
+script_player.load_files()
 
 # Configuration and styles for GUI ------------------------------------------------------------------------------------
 # NOTE: Add spaces before and after each argument in string format. eg: <space>p-0<space> => " p-0 "
@@ -58,21 +65,44 @@ with ui.header().classes(replace="row items-center") as header:
 with ui.card() as script_card:
     script_card.classes(grid_card_classes + " grid-cols-3 grid-rows-2")
 
-    async def pick_file() -> None:
-        """Open a dialog to select a script file name and load it"""
-        # Use local_file_picker (NiceGUI example) to select script
-        loaded_script = await local_file_picker(script_folder, multiple=False)
+    async def select_file(filename: str) -> None:
+        """Select a script file name and load it"""
 
-        ui.notify(f"Script selected: {loaded_script[0]}")
-        # Change button text to script name
-        load_script_button.set_text(f"{loaded_script[0]}")
-        # Change button color to green to indicate script loaded
-        load_script_button.props("color=light-blue-7 text-color=white")
+        # script_player.selected_file = filename
+        ui.notify(f"Script selected: {script_player.selected_file}")
 
-    # Select Script Button
-    load_script_button = ui.button("Choose file", on_click=pick_file, icon="folder")
-    load_script_button.classes(button_classes + " col-span-3 row-span-1")
-    load_script_button.props(button_props)
+    # Dropdown Menu -----
+    file_select_dropdown = (
+        ui.select(
+            options=script_player.file_list,
+            with_input=True,
+            clearable=True,
+            on_change=lambda e: select_file(e.value),  # Event object with the selected value
+        )
+        .classes("col-span-2 row-span-1")
+        .bind_value(script_player, "selected_file")
+    )
+
+    # Reload Button -----
+    reload_button = (
+        ui.button("Reload", on_click=lambda: ui.notify(script_player.load_files()))
+        .classes(button_classes + " col-span-1 row-span-1")
+        .props(button_props)
+    )
+
+    # Stop Button -----
+    stop_button = (
+        ui.button("Stop", on_click=lambda: ui.notify(script_player.stop_script()))
+        .classes(button_classes + " col-span-1 row-span-1")
+        .props(button_props)
+    )
+
+    # Play Button -----
+    play_button = (
+        ui.button("Play", on_click=lambda: ui.notify(script_player.execute()))
+        .classes(button_classes + " col-span-1 row-span-1")
+        .props(button_props)
+    )
 
 
 # Footer --------------------------------------------------------------------------------
@@ -147,6 +177,7 @@ with ui.footer(value=True) as footer:
 
         ui.label("GEAR").classes(footer_label_classes)
         gear_label = ui.label("N").classes("select-none font-bold text-stone-400 text-6xl m-auto")
+        gear_label.bind_text_from(actor, "gui_gear")  # TODO: bind this to the status node
 
 
 # Floating area -------------------------------------------------------------------------
@@ -154,34 +185,33 @@ with ui.footer(value=True) as footer:
 with ui.page_sticky(position="bottom", x_offset=20, y_offset=20):
     # UI functions only - ROS stuff handled separately
     def activate_e_stop():
-        # Send E-Stop command to ROS via status class
-        actor.send_e_stop()  # TODO: Use EStopManager
+        e_stop()  # Using EStopManager
 
         ui.notify("E-STOP ACTIVATED", type="warning", position="center")
 
-        # These should go in a separate thread to always be up-to-date based on the status
+        # TODO: bind these to actual state using the status node
         e_stop_button.props("color=dark text-color=positive")
         e_stop_spinner.props("color=positive")
 
     def reset_e_stop():
-        # Send E-Stop reset command to ROS via status class
-        actor.send_reset_e_stop()  # TODO: Use EStopManager
+        e_stop.reset()  # Using EStopManager
 
         ui.notify("E-STOP RESET", type="positive", position="center")
+
         e_stop_button.props("color=warning text-color=negative")
         e_stop_spinner.props("color=negative")
 
-    # E-Stop button ----- # TODO: Use EStopManager
-    with ui.button(on_click=lambda: activate_e_stop() if not actor.e_stop else reset_e_stop()) as e_stop_button:
+    # E-Stop button -----
+    with ui.button(on_click=lambda: activate_e_stop() if not actor.e_stop_active else reset_e_stop()) as e_stop_button:
         e_stop_button.props(button_props + " color=warning text-color=negative")
         e_stop_button.classes("w-20 h-20 m-auto text-bold text-center")
-        e_stop_button.bind_text_from(actor, "e_stop_text")
+        e_stop_button.bind_text_from(actor, "e_stop_text")  # TODO: add e_stop_text to Status node
 
         e_stop_spinner = (
             ui.spinner("puff", size="20px")
             .props("color=negative")
             .classes("m-auto")
-            .bind_visibility_from(actor, "e_stop_heartbeat")
+            .bind_visibility_from(actor, "e_stop_heartbeat")  # TODO: add e_stop_heartbeat to Status node
         )
 
 

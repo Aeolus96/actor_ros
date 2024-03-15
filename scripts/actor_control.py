@@ -8,8 +8,10 @@ This script is part of a larger ROS-based system for controlling and monitoring 
 Dependencies:
 - ROS (Robot Operating System)
 - actor_ros package (for custom ROS messages)
-- dbw_polaris_msgs package (for Drive By Wire messages developed by DataSoeed)
+- dbw_polaris_ros package (for Drive By Wire messages developed by DataSoeed)
               (https://bitbucket.org/DataspeedInc/dbw_polaris_ros/src/master/)
+- dataspeed_ulc_ros package (for ULC messages developed by DataSoeed)
+              (https://bitbucket.org/DataspeedInc/dataspeed_ulc_ros/src/master/)
 
 Authors:
 - [Devson Butani] <dbutani@ltu.edu>
@@ -22,14 +24,8 @@ import math
 import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
 import rospy  # ROS Python API
 from actor_ros.cfg import ActorControlConfig  # Dynamic Reconfigure Config File
-from dbw_polaris_msgs.msg import (  # Drive By Wire Messages
-    BrakeCmd,
-    Gear,
-    GearCmd,
-    SteeringCmd,
-    ThrottleCmd,
-)
-from dataspeed_ulc_msgs.msg import UlcCmd
+from dataspeed_ulc_msgs.msg import UlcCmd  # Drive By Wire ULC Messages
+from dbw_polaris_msgs.msg import SteeringCmd  # Drive By Wire Native Messages
 from dynamic_reconfigure.server import Server  # ROS Dynamic Reconfigure
 from geometry_msgs.msg import Twist  # ROS Messages
 from std_msgs.msg import Empty  # ROS Messages
@@ -53,7 +49,7 @@ def dyn_rcfg_callback(config, level):
     return config
 
 
-def drive_twist_callback(Twist_msg):
+def drive_twist_callback(Twist_msg) -> None:
     """Updates the input twist message to buffer"""
     global msg_twist_buffer, last_twist_time
 
@@ -61,7 +57,7 @@ def drive_twist_callback(Twist_msg):
     msg_twist_buffer = Twist_msg  # Update twist buffer global
 
 
-def publish_vehicle_controls(TimerEvent):
+def publish_vehicle_controls(TimerEvent) -> None:
     """Publish vehicle controls at a controlled rate"""
     global msg_twist_buffer
 
@@ -83,25 +79,12 @@ def publish_vehicle_controls(TimerEvent):
     # Using ULC speed control
     publish_ulc_speed(requested_speed)
 
-    # Using native pedal control with a custom speed controlling method
-    # TODO: Implemention works, needs lot of tuning
-    # shift_gear_automatically(requested_speed)  # Handle gear shifting first
-    # accelerator, brakes = calculate_pedals(requested_speed)
-    # publish_accelerator(pedal_percent=accelerator / 100.0)
-    # publish_brakes(pedal_percent=brakes / 100.0)
-
     # Steering ----------------------------------------------------------------
     # Using native steering control
     if config_.twist_uses_road_angle:
         publish_steering(requested_road_angle=msg_twist_buffer.angular.z)
     else:  # Use steering wheel angle
         publish_steering(requested_steering_angle=msg_twist_buffer.angular.z)
-
-    # Tuning Mode -------------------------------------------------------------
-    if config_.tuning_mode:
-        # Add debug rospy.loginfo() here
-        pass
-        # NOTE: output="screen" is required in the launch file
 
 
 # End of Callbacks ------------------------------------------------------------
@@ -134,219 +117,6 @@ def publish_ulc_speed(speed: float) -> None:
     pub_ulc.publish(ulc_cmd)
 
 
-def reset_drive_messages():
-    """Set all DBW messages to zero or default values and return them."""
-
-    # NOTE: Not used at the moment, but can be used in the future
-
-    # Accelerator
-    msg_accelerator = ThrottleCmd()
-    msg_accelerator.pedal_cmd = 0.0
-    msg_accelerator.pedal_cmd_type = ThrottleCmd.CMD_PERCENT  # 0.0 to 1.0
-    msg_accelerator.enable = False  # Enable Throttle, required 'True' for control via ROS
-    # Do not use these without completely understanding how they work on the hardware level:
-    msg_accelerator.clear = False
-    msg_accelerator.ignore = False
-    msg_accelerator.count = 0
-
-    # Brake
-    msg_brakes = BrakeCmd()
-    msg_brakes.pedal_cmd = 0.0  # NOTE: At 0.50 it is way too much G force in real world.
-    msg_brakes.pedal_cmd_type = BrakeCmd.CMD_PERCENT  # 0.0 to 1.0
-    msg_brakes.enable = False  # Enable Brake, required 'True' for control via ROS
-    # Do not use these without completely understanding how they work on the hardware level:
-    msg_brakes.clear = False
-    msg_brakes.ignore = False
-    msg_brakes.count = 0
-
-    # Steering
-    msg_steering = SteeringCmd()
-    msg_steering.steering_wheel_angle_cmd = 0.0  # radians (-600deg to 600deg for ACTor)
-    # NOTE: Output is the target steering angle in radians not an angle increment
-    # 16.2:1 steering to road angle ratio and 69 inch Ackerman wheelbase
-    msg_steering.enable = False  # Enable Steering, required 'True' for control via ROS
-    # Do not use these without completely understanding how they work on the hardware level:
-    msg_steering.cmd_type = SteeringCmd.CMD_ANGLE  # CAUTION: Torque mode disables lateral acceleration limits
-    msg_steering.steering_wheel_angle_velocity = 0.0  # rad/s
-    msg_steering.steering_wheel_torque_cmd = 0.0  # Nm
-    msg_steering.clear = False
-    msg_steering.ignore = False
-    msg_steering.calibrate = False
-    msg_steering.quiet = False
-    msg_steering.count = 0
-
-    return msg_accelerator, msg_brakes, msg_steering
-
-
-def shift_gear_automatically(requested_speed) -> None:
-    """Automatically shifts gear based on requested speed and current speed"""
-
-    # --------------------------------- at or near 0mph
-    if abs(actor.speed) < config_.speed_deadband:
-        #
-        # ----------------------------- requested staying stopped
-        if abs(requested_speed) < config_.speed_deadband:
-            if actor.gear != "NEUTRAL":
-                shift_gear("NEUTRAL")
-
-        # ----------------------------- requested moving forward
-        if requested_speed > config_.speed_deadband:
-            if actor.gear != "DRIVE":
-                shift_gear("DRIVE")
-
-        # ----------------------------- requested moving backward
-        if requested_speed < -config_.speed_deadband:
-            if actor.gear != "REVERSE":
-                shift_gear("REVERSE")
-
-    # --------------------------------- already in motion
-    else:
-        #
-        # ----------------------------- requested stopping OR changing direction of motion (requires stopping)
-        if abs(requested_speed) < config_.speed_deadband or (actor.speed * requested_speed) < 0:
-            if actor.gear != "NEUTRAL":
-                shift_gear("NEUTRAL")
-
-        # else: ----------------------- requested moving in the same direction
-
-
-def shift_gear(gear_input: str) -> bool:
-    """Shifts gear using string input. Returns True if successful
-    Gears avaiilable: NONE, PARK, REVERSE, NEUTRAL, DRIVE, LOW"""
-
-    gear_input = gear_input.upper()
-
-    gear_dict = {
-        "NONE": 0,
-        "PARK": 1,
-        "REVERSE": 2,
-        "NEUTRAL": 3,
-        "DRIVE": 4,
-        "LOW": 5,
-    }  # Only used for internal error checking for this method
-    # NOTE: ACTor only has "NONE", "REVERSE", "NEUTRAL", "DRIVE".
-
-    if gear_input not in gear_dict:
-        rospy.logerr(f"Invalid gear: {gear_input}")
-        return False
-
-    if actor.gear == gear_dict[gear_input]:
-        rospy.logdebug(f"Gear is already {gear_input}")
-        return True
-
-    if abs(actor.speed) > config_.speed_deadband:  # Speed is not near zero
-        stop_with_brakes()  # and then shift gear
-
-    # Publish gear shift command ----------------------------------------------
-    msg_gear = Gear()
-    msg_shift_gear = GearCmd()
-    msg_gear.gear = gear_dict[gear_input]  # Set gear message
-    msg_shift_gear.cmd = msg_gear  # Make gear shift command
-    pub_gear.publish(msg_shift_gear)
-    rospy.logdebug(f"Gear shifted to {gear_input}")
-    return True
-
-
-def calculate_pedals(requested_speed: float) -> tuple[float, float]:
-    """Calculate pedal values to maintain the vehicle at the requested speed."""
-    # NOTE: This is not smooth enough to be used for real world.
-
-    accelerator = 0
-    brakes = 0
-
-    if abs(requested_speed) < config_.speed_deadband:  # Requested Stopping the vehicle
-        stop_with_brakes()
-        return accelerator, brakes
-
-    speed_difference = requested_speed - actor.speed
-
-    if abs(speed_difference) > config_.speed_deadband:
-        # Speed is not near zero and speed difference is also not near zero
-
-        if speed_difference > config_.acceleration_threshold:
-            # Need to Accelerate
-            accelerator = actor.accelerator_percent + config_.speed_ramp_up_constant * speed_difference
-            brakes = 0
-
-        elif speed_difference < config_.light_braking_threshold:
-            # Need to Decelerate
-            accelerator = 0
-            brakes = min(
-                config_.light_braking_max,
-                actor.brake_percent + config_.speed_ramp_down_constant * abs(speed_difference),
-            )
-
-        else:
-            # Need to Coast
-            accelerator = 0
-            brakes = 0
-
-    return accelerator, brakes
-
-
-def publish_accelerator(*, pedal_percent: float) -> None:
-    """Publish requested accelerator pedal value to the vehicle.
-    Input is 0.2 (physical minimum) and 0.8 (physical maximum), however 0.3 actually starts to move the vehicle"""
-
-    pedal_percent = max(0.2, min(8.0, pedal_percent))
-
-    # if 0.2 < pedal_percent > 0.8:  # 0.2 is physical minimum and 0.8 is physical maximum
-    # Accept values however no need to publish out of physical range
-
-    # Make Accelerator message --------------------------------------------
-    msg_accelerator = ThrottleCmd()
-    msg_accelerator.pedal_cmd = pedal_percent
-    msg_accelerator.pedal_cmd_type = ThrottleCmd.CMD_PEDAL  # 0.2 to 0.8
-    msg_accelerator.enable = True  # Enable Throttle, required 'True' for control via ROS
-
-    # Do not use these without completely understanding how they work on the hardware level:
-    msg_accelerator.clear = False
-    msg_accelerator.ignore = False
-    msg_accelerator.count = 0
-    # ---------------------------------------------------------------------
-
-    pub_accelerator.publish(msg_accelerator)
-
-
-def publish_brakes(*, pedal_percent: float) -> None:
-    """Publish requested brake pedal value to the vehicle. Input is 0.0 to 1.0 however 0.50 is too much G force"""
-
-    # Make sure it is within range
-    brake_maximum = config_.brake_max if actor.speed > 2.0 else 0.3
-    # NOTE: 0.3 ~ 30% is more than enough for immediate braking at very low speeds
-    pedal_percent = max(0.0, min(brake_maximum, pedal_percent))
-
-    # Make Brake message ------------------------------------------------------
-    msg_brakes = BrakeCmd()
-    msg_brakes.pedal_cmd = pedal_percent  # NOTE: At 0.50 it is way too much G force in real world.
-    msg_brakes.pedal_cmd_type = BrakeCmd.CMD_PERCENT  # 0.0 to 1.0
-    msg_brakes.enable = False  # Enable Brake, required 'True' for control via ROS
-
-    # Do not use these without completely understanding how they work on the hardware level:
-    msg_brakes.clear = False
-    msg_brakes.ignore = False
-    msg_brakes.count = 0
-    # -------------------------------------------------------------------------
-
-    pub_brakes.publish(msg_brakes)
-
-
-def stop_with_brakes() -> None:
-    """Come to a complete stop using brakes. Ramps using brake_ramp_hz in dynamic reconfig"""
-
-    first_time = rospy.Time.now()
-    brake_timeout = rospy.Duration(5)  # seconds
-    rate = rospy.Rate(config_.brake_ramp_hz)
-    brake_value = 0.0
-    while abs(actor.speed) > config_.speed_deadband and (rospy.Time.now() - first_time) < brake_timeout:
-        # While not nearly stopped or within timeout, increase brakes gradually upto max value
-        brake_value += 0.01 if brake_value < config_.brake_max else config_.brake_max
-        # TODO: This went over 0.4
-        publish_brakes(pedal_percent=brake_value)
-        rate.sleep()
-        rospy.loginfo(f"Braking pedal value = {brake_value:8.2f}")
-
-
 def publish_steering(*, requested_steering_angle: float = None, requested_road_angle: float = None) -> None:
     """Publish requested steering to the vehicle.
     Input can be desired degree road angle (-37 to 37) or steering angle (-600 to 600)"""
@@ -369,7 +139,8 @@ def publish_steering(*, requested_steering_angle: float = None, requested_road_a
 
     # Do NOT use these without completely understanding how they work on the hardware level:
     msg_steering.cmd_type = SteeringCmd.CMD_ANGLE  # CAUTION: Torque mode disables lateral acceleration limits
-    msg_steering.steering_wheel_angle_velocity = 0.0  # rad/s
+    # Use angle velocity to control rate. Lock to lock = 1200deg i.e. 300deg/s will be 4secs lock to lock
+    msg_steering.steering_wheel_angle_velocity = math.radians(config_.steering_rate_dps)  # deg/s -> rad/s
     msg_steering.steering_wheel_torque_cmd = 0.0  # Nm
     msg_steering.clear = False
     msg_steering.ignore = False
@@ -401,6 +172,10 @@ def steering_limiter(*, steering_wheel_angle: float = None, road_angle: float = 
     Input can be desired degree road angle (-37 to 37) or steering angle (-600 to 600)
     """
 
+    lower_limit = -600
+    upper_limit = 600
+    out_angle = 0.0
+
     if road_angle is None and steering_wheel_angle is None:
         rospy.logerr("Steering limiter called with no steering angle provided")
         return 0.0
@@ -411,8 +186,6 @@ def steering_limiter(*, steering_wheel_angle: float = None, road_angle: float = 
     elif steering_wheel_angle is not None:
         out_angle = steering_wheel_angle
 
-    lower_limit = -600
-    upper_limit = 600
     return lower_limit if out_angle < lower_limit else upper_limit if out_angle > upper_limit else out_angle
 
 
@@ -447,10 +220,7 @@ rospy.Timer(rospy.Duration(1 / config_.control_rate_hz), publish_vehicle_control
 actor = actor_tools.ActorStatusReader()
 
 # Define publishers
-pub_accelerator = rospy.Publisher(rospy.get_param("accelerator"), ThrottleCmd, queue_size=1)
-pub_brakes = rospy.Publisher(rospy.get_param("brakes"), BrakeCmd, queue_size=1)
 pub_steering = rospy.Publisher(rospy.get_param("steering"), SteeringCmd, queue_size=1)
-pub_gear = rospy.Publisher(rospy.get_param("gear"), GearCmd, queue_size=1)
 pub_enable_cmd = rospy.Publisher(rospy.get_param("enable"), Empty, queue_size=1)
 pub_ulc = rospy.Publisher(rospy.get_param("ulc"), UlcCmd, queue_size=1)
 
