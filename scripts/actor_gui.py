@@ -79,7 +79,7 @@ with ui.card() as script_card:
             clearable=True,
             on_change=lambda e: select_file(e.value),  # Event object with the selected value
         )
-        .classes("col-span-2 row-span-1")
+        .classes("col-span-3 row-span-1")
         .bind_value(script_player, "selected_file")
     )
 
@@ -156,7 +156,9 @@ with ui.footer(value=True) as footer:
             .bind_visibility_from(status, "is_enabled")
         )
         ui.label("ENABLED").classes(footer_label_classes + " my-auto").bind_visibility_from(status, "is_enabled")
-        ui.label("DISABLED").classes(footer_label_classes + " my-auto").bind_visibility_from(status, "not_is_enabled")
+        ui.label("DISABLED").classes(footer_label_classes + " my-auto").bind_visibility_from(
+            status, "is_enabled", backward=lambda state: not state
+        )
         # NOTE: not_is_enabled is a relational property written in the status node. It is solely used for GUI purposes
 
     # Speed -----

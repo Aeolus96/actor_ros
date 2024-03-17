@@ -186,15 +186,21 @@ class ActorStatusReader:
         self.is_simulated = False
         self.is_autonomous = False
         self.is_tele_operated = False
-        self.accelerator_percent = random.uniform(20, 80)  # 35.05
-        self.brake_percent = random.uniform(0, 50)  # 12.23
-        self.steering_wheel_angle = random.uniform(-600, 600)  # -194.4
-        self.road_angle = random.uniform(-37.5, 37.5)  # -12.1
-        self.speed = random.uniform(0, 15)  # 2.34
+        self.accelerator_percent = round(random.uniform(20, 80), 2)
+        self.brake_percent = round(random.uniform(0, 50), 2)
+        self.steering_wheel_angle = round(random.uniform(-600, 600), 2)
+        self.road_angle = round(random.uniform(-37.5, 37.5), 2)
+        self.speed = round(random.uniform(0, 15), 2)
         self.gear = random.choice(["PARK", "REVERSE", "NEUTRAL", "DRIVE"])  # "DRIVE"
         self.is_enabled = True
-        self.requested_speed = random.uniform(0, 15)  # 3.45
-        self.requested_road_angle = random.uniform(-37.5, 37.5)  # -9.0
+        self.requested_speed = round(random.uniform(0, 15), 2)
+        self.requested_road_angle = round(random.uniform(-37.5, 37.5), 2)
+
+        self.estop_state = False
+        self.estop_heartbeat = True
+        self.estop_physical_button = False
+        self.estop_wireless_button = False
+        self.estop_software_button = False
 
         # NOTE: These values can be changed in desired way if needed
 
@@ -358,6 +364,10 @@ class ScriptPlayer:
         if self.process and self.is_running:
             self.process.terminate()  # SIGTERM
             self.process.wait(timeout=timeout)
+
+            if self.process is None:  # Process has been successfully terminated
+                self.is_running = False
+                return "Script stopped"
 
             if self.process.poll() is None:  # If process is still running
                 self.process.terminate()  # Forcefully kill the process - SIGKILL
