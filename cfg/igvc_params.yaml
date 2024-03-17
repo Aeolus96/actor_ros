@@ -10,6 +10,10 @@ publishers:
     topic: /vehicle/brake_cmd
     msg_file: dbw_polaris_msgs.msg
     msg_type: BrakeCmd
+  - name: pub_gear
+    topic: /vehicle/gear_cmd
+    msg_file: dbw_polaris_msgs.msg
+    msg_type: GearCmd
   # Yolo Detection --------------------
   - name: pub_yolo
     topic: /yolo_look_for

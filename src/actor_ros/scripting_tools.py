@@ -73,21 +73,27 @@ class ActorScriptTools:
         print(f"{' ' * padding}{title.upper()}{' ' * padding}")
         print("=" * width)
 
-    def stop_vehicle(self, using_brakes: bool = True, duration: float = 3.0) -> bool:
+    def stop_vehicle(self, using_brakes: bool = False, duration: float = 3.0) -> bool:
         """Stop the vehicle by publishing either a zero twist message or a brake pedal command
         and wait for duration seconds"""
 
         self.print_highlights(f"Stopping Vehicle for {round(duration, 2)}s...")
         start_time = rospy.Time.now()
-        rate = rospy.Rate(50)  # Hz
+        rate_hz = 50  # Hz (dbw times out at 10Hz)
+        rate = rospy.Rate(rate_hz)
 
         if using_brakes:  # Send brake pedal command to DBW
             msg = BrakeCmd()
             msg.pedal_cmd_type = 2
-            msg.pedal_cmd = 0.2
+            msg.pedal_cmd = 0.0
             msg.enable = True
 
+            # Reach target pedal value by increasing pedal value for duration seconds
+            brake_target = 0.2  # target brake pedal value
+            increment = (duration * rate_hz) / brake_target
+
             while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
+                msg.pedal_cmd = min(brake_target, msg.pedal_cmd + increment)  # Increase pedal value
                 self.pub_brakes.publish(msg)
                 rate.sleep()
 
@@ -95,14 +101,58 @@ class ActorScriptTools:
             while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
                 self.drive(0.0, 0.0)
 
+    def shift_gear(self, gear_input: str) -> bool:
+        """Shifts gear using string input. Please stop the vehicle first before calling this method.
+        Gears avaiilable: NONE, REVERSE, NEUTRAL, DRIVE."""
+
+        gear_input = gear_input.upper()
+        gear_dict = {
+            "NONE": 0,
+            "PARK": 1,
+            "REVERSE": 2,
+            "NEUTRAL": 3,
+            "DRIVE": 4,
+            "LOW": 5,
+        }  # Only used for internal error checking for this method
+        # NOTE: ACTor only has "NONE", "REVERSE", "NEUTRAL", "DRIVE".
+
+        if gear_input not in gear_dict:
+            rospy.logerr(f"Invalid gear: {gear_input}")
+            return False
+
+        if self.status.gear == gear_dict[gear_input]:
+            rospy.logdebug(f"Gear is already {gear_input}")
+            return True
+
+        # Publish gear shift command ----------------------------------------------
+        msg_gear = Gear()
+        msg_gear.gear = gear_dict[gear_input]  # Set gear message
+        msg_shift_gear = GearCmd()
+        msg_shift_gear.cmd = msg_gear  # Make gear shift command
+        self.pub_gear.publish(msg_shift_gear)
+        rospy.logdebug(f"Gear shifted to {gear_input}")
+        return True
+
     def drive(self, speed=0.0, angle=0.0) -> None:
         """Publishes a twist message to drive the vehicle.
-        It allows optional function-based speed and angle control"""
+        It allows optional function-based speed and angle control.
+        Make sure the vehicle is stopped before requesting a direction change."""
 
         if callable(speed):  # Use function-based speed control
             speed = speed()
         if callable(angle):  # Use function-based angle control
             angle = angle()
+
+        # Use input speed and current gear to determine if the vehicle should shift gears
+        if speed > 0.0:
+            if self.status.gear != "DRIVE":
+                self.shift_gear("DRIVE")
+        elif speed == 0.0:
+            if self.status.gear != "NEUTRAL":
+                self.shift_gear("NEUTRAL")
+        elif speed < 0.0:  # NOTE: Make sure the vehicle is stopped before requesting a direction change
+            if self.status.gear != "REVERSE":
+                self.shift_gear("REVERSE")
 
         msg = Twist()
         msg.linear.x = speed
