@@ -30,7 +30,7 @@ class ActorStatusReader:
     def __init__(self, read_from_redis=False, simulate_for_testing=False):
         """Initialize the ACTor Status Message Reader"""
 
-        self.simulated_values = simulate_for_testing
+        self.simulate_values = simulate_for_testing
 
         self.is_simulated = False
         self.is_autonomous = False
@@ -44,10 +44,10 @@ class ActorStatusReader:
         self.is_enabled = False
         self.requested_speed = 0
         self.requested_road_angle = 0
-        self.e_stop_state = False
-        self.e_stop_heartbeat = False
-        self.e_stop_physical_button = False
-        self.e_stop_wireless_button = False
+        self.estop_state = False
+        self.estop_physical_button = False
+        self.estop_wireless_button = False
+        self.estop_software_button = False
 
         # e_stop/state - Bool
         # e_stop/heartbeat - Header
@@ -59,30 +59,34 @@ class ActorStatusReader:
 
         # Values used only for GUI
         self.gui_gear = self.gear[0]
-        self.gui_e_stop_text = "STOP" if self.e_stop_state else "RESET"
+        self.gui_e_stop_text = "STOP" if self.estop_state else "RESET"
 
-        if read_from_redis:  # In case status is read from a database, do not initialize the subscriber.
-            # NOTE: updates need to be called manually using the redis_callback() function
-            try:
-                self.connect_to_redis()
-            except ConnectionError as e:
-                print(e)
-                return e
+        if simulate_for_testing:
+            self.simulate_values()
 
-        else:  # Start a thread to continuously read status messages from ROS
-            # NOTE: This requires the instance to be created inside a ROS node
+        else:
+            if read_from_redis:  # In case status is read from a database, do not initialize the subscriber.
+                # NOTE: updates need to be called manually using the redis_callback() function
+                try:
+                    self.connect_to_redis()
+                except ConnectionError as e:
+                    print(e)
+                    return e
 
-            import rospy  # ROS Python API
+            else:  # Start a thread to continuously read status messages from ROS
+                # NOTE: This requires the instance to be created inside a ROS node
 
-            from actor_ros.msg import ActorStatus  # Custom ROS Message
+                import rospy  # ROS Python API
 
-            rospy.Subscriber(rospy.get_param("status"), ActorStatus, self.actor_status_callback, queue_size=1)
-            # NOTE: topic accesed from the 'actor/' namespace by default
+                from actor_ros.msg import ActorStatus  # Custom ROS Message
+
+                rospy.Subscriber(rospy.get_param("status"), ActorStatus, self.actor_status_callback, queue_size=1)
+                # NOTE: param('status') accesed from the 'actor/' namespace by default
 
     def __call__(self):
         """Call method to update the latest ACTor Status values"""
-        if self.simulated_values:
-            self.simulate_for_testing()
+        if self.simulate_values:
+            self.simulate_values()
         else:
             self.redis_callback()
 
@@ -111,6 +115,12 @@ class ActorStatusReader:
         self.is_enabled = ActorStatus_msg.is_enabled
         self.requested_speed = ActorStatus_msg.requested_speed
         self.requested_road_angle = ActorStatus_msg.requested_road_angle
+
+        # E-stop
+        self.estop_state = ActorStatus_msg.e_stop_state
+        self.estop_physical_button = ActorStatus_msg.estop_physical_button
+        self.estop_wireless_button = ActorStatus_msg.estop_wireless_button
+        self.estop_software_button = ActorStatus_msg.estop_software_button
 
     def connect_to_redis(self) -> bool:
         """Connect to Redis server and read the latest ACTor Status values"""
@@ -165,7 +175,7 @@ class ActorStatusReader:
         self.requested_speed = self.to_float(self.redis.get("requested_speed"))
         self.requested_road_angle = self.to_float(self.redis.get("requested_road_angle"))
 
-    def simulate_for_testing(self) -> None:
+    def simulate_values(self) -> None:
         """Simulate variables for testing purposes. Used to test the GUI"""
         import random
 
@@ -188,37 +198,52 @@ class ActorStatusReader:
 
 
 class EStopManager:
-    """Manager for E-Stop functionality.
-    E-Stop can be triggered from anywhere."""
+    """Manager for E-Stop functionality. E-Stop can be triggered from anywhere.
+    Also provides a way to reset a software E-Stop, enable and disable the Drive-By-Wire System."""
 
-    # e_stop/state - Bool
-    # e_stop/physical_button - Bool
-    # e_stop/wireless_button - Bool
-    # e_stop/trigger - Empty
-    # e_stop/reset - Empty
-    # e_stop/heartbeat - Header
+    # actor/e_stop/state - Bool
+    # actor/e_stop/physical_button - Bool
+    # actor/e_stop/wireless_button - Bool
+    # actor/e_stop/trigger - Empty
+    # actor/e_stop/reset - Empty
+    # actor/e_stop/heartbeat_edge - Header
+    # actor/e_stop/heartbeat_core - Header
 
     def __init__(self):
         """Initialize the E-Stop Manager for any script"""
         self.e_stop_topic = "/actor/e_stop/trigger"
         self.e_stop_reset_topic = "/actor/e_stop/reset"
+        self.enable_topic = "/vehicle/enable"
+        self.disable_topic = "/vehicle/disable"
 
     def __call__(self) -> bool:
-        """Call method to trigger E-Stop using the instance"""
+        """Call method to trigger E-Stop using the instance of E-Stop Manager"""
         return self.trigger_e_stop()
 
     def trigger_e_stop(self) -> bool:
-        """Trigger E-Stop by publishing an empty message to the E-Stop topic"""
+        """Trigger E-Stop by publishing an empty message to the E-Stop topic using rostopic pub command"""
 
-        return self.send_command(f"rostopic pub {self.e_stop_topic} std_msgs/Empty -1")
+        return self._send_command(f'rostopic pub --once {self.e_stop_topic} std_msgs/Empty "{{}}" >/dev/null 2>&1 &')
 
-    def reset(self):
-        """Reset E-Stop by publishing an empty message to the E-Stop reset topic"""
+    def reset(self) -> bool:
+        """Resets E-Stop by publishing an empty message to the E-Stop reset topic using rostopic pub command"""
 
-        return self.send_command(f"rostopic pub {self.e_stop_reset_topic} std_msgs/Empty -1")
+        return self._send_command(
+            f'rostopic pub --once {self.e_stop_reset_topic} std_msgs/Empty "{{}}" >/dev/null 2>&1 &'
+        )
 
-    def send_command(self, command: str) -> bool:
-        """Send a custom command to the E-Stop topic"""
+    def enable_dbw(self) -> bool:
+        """Enables vehicle control using rostopic pub command"""
+
+        return self._send_command(f'rostopic pub --once {self.enable_topic} std_msgs/Empty "{{}}" >/dev/null 2>&1 &')
+
+    def disable_dbw(self) -> bool:
+        """Disable vehicle control using rostopic pub command"""
+
+        return self._send_command(f'rostopic pub --once {self.disable_topic} std_msgs/Empty "{{}}" >/dev/null 2>&1 &')
+
+    def _send_command(self, command: str) -> bool:
+        """Send a custom shell command using system. Generally used with rostopic pub command"""
         import os
 
         try:
@@ -273,6 +298,7 @@ class ScriptPlayer:
         self.output_text = ""
 
         try:
+            # NOTE: "rosrun actor_ros <script_name>" can be used, this will likely impact how logging and stdout works
             self.process = subprocess.Popen(
                 ["python3", f"{self.active_directory}/{self.selected_file}"],
                 shell=True,  # Needed to source ROS using .bashrc
@@ -286,11 +312,31 @@ class ScriptPlayer:
             # Read output streams in separate threads and combine them into output_text
             Thread(target=self.read_output, args=(self.process.stdout,), daemon=True).start()
             Thread(target=self.read_output, args=(self.process.stderr,), daemon=True).start()
-            return "Script finished running"
+
+            # Start a separate thread to monitor the process and check return code
+            Thread(target=self.monitor_process, daemon=True).start()
+            return "Script started running"
 
         except Exception as e:
             self.is_running = False
-            return f"Error: {e}"
+            self.process = None
+            return f"---------------- Error in script ----------------\n{e}"
+
+    def monitor_process(self):
+        # Wait for the subprocess to finish and get the return code
+        return_code = self.process.wait()
+
+        # Update the running flag
+        self.is_running = False
+
+        # Check the return code to determine if the script completed successfully
+        if return_code == 0:
+            self.process = None
+            return "Script finished running"
+
+        else:
+            self.process = None
+            return f"Script exited with non-zero return code: {return_code}"
 
     def read_output(self, stream):
         """Read output stream and add lines into output_text
@@ -313,10 +359,12 @@ class ScriptPlayer:
                 self.process.terminate()  # Forcefully kill the process - SIGKILL
                 self.process.wait()
                 self.is_running = False
+                self.process = None
                 return "Script stopped"
 
             else:
                 self.is_running = False
+                self.process = None
                 return "Script stopped"
 
         else:
@@ -325,11 +373,22 @@ class ScriptPlayer:
     # End of class ------------------------
 
 
-# TODO: Add Classes to wrap functionality of the ACTor
-# These can be separate files however, the functionality of directly accessing data is what is needed here
-# TODO: Twist Publisher
-# TODO: Lane Centering Subscriber
-# TODO: Lidar Subscriber
-# TODO: GPS Subscriber
-# TODO: Yolo Publisher + Subscriber
-# TODO: Barrel Detection Subscriber
+class YAMLReader:
+    """Read YAML files and store the data in an attribute style access object.
+    This only reads at instance creation"""
+
+    def __init__(self, file_path):
+        """Initialize the YAML Reader"""
+        import yaml
+        from munch import munchify
+
+        self.params = None
+        with open(file_path, "r") as file:
+            try:
+                self.params = munchify(yaml.safe_load(file))
+            except Exception as e:
+                print(f"Failed to load YAML file: {e}")
+                self.params = None
+                return None
+
+    # End of class ------------------------

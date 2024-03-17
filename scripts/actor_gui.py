@@ -16,7 +16,7 @@ from nicegui import ui  # NiceGUI library
 # actor = actor_tools.ActorStatusReader(read_from_redis=True)
 # ui.timer(interval=(1 / 60), callback=lambda: actor())  # Update status from database with a timer
 # Simulated Values ------------------------------
-actor = actor_tools.ActorStatusReader(read_from_redis=True, simulate_for_testing=True)
+actor = actor_tools.ActorStatusReader(simulate_for_testing=True)
 ui.timer(interval=(1), callback=lambda: actor())  # Update status from database with a timer
 
 # E-STOP ----------------------------------------
@@ -24,7 +24,7 @@ e_stop = actor_tools.EStopManager()
 
 # Script Player ---------------------------------
 # Using rospkg to get the full path to the directory containing the scripts
-script_player = actor_tools.ScriptPlayer(rospkg.RosPack().get_path("actor_ros") + "/igvc_scripts/")
+script_player = actor_tools.ScriptPlayer(rospkg.RosPack().get_path("actor_ros") + "/scripts/igvc_scripts/")
 script_player.load_files()
 
 # Configuration and styles for GUI ------------------------------------------------------------------------------------

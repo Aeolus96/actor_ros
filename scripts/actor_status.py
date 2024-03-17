@@ -21,7 +21,6 @@ License: MIT
 
 import math  # Math Library
 import subprocess  # Subprocess Python API
-import time  # Time Python API
 
 import redis  # Redis Key Value Store Python API
 import rospy  # ROS Python API
@@ -35,7 +34,7 @@ from dbw_polaris_msgs.msg import (
     ThrottleReport,
 )
 from geometry_msgs.msg import Twist  # ROS Messages
-from std_msgs.msg import Bool  # ROS Messages
+from std_msgs.msg import Bool, Header  # ROS Messages
 
 # End of Imports --------------------------------------------------------------
 
@@ -101,12 +100,13 @@ def drive_twist_callback(Twist_msg):
     requested_road_angle = Twist_msg.angular.z
 
 
-def speed_limit_callback(TimerEvent):
-    """Report the speed limit"""
-    global speed_limit
+# NOTE: Not used at the moment
+# def speed_limit_callback(TimerEvent):
+#     """Report the speed limit"""
+#     global speed_limit
 
-    # Get speed limit
-    speed_limit = rospy.get_param("speed_limit", -1.0)
+#     # Get speed limit
+#     speed_limit = rospy.get_param("speed_limit", -1.0)
 
 
 def enabled_callback(Enabled_msg):
@@ -122,6 +122,13 @@ def estop_state_callback(msg):
     global estop_state
 
     estop_state = msg.data
+
+
+def estop_heartbeat_callback(msg):
+    """Report the estop heartbeat timestamp"""
+    global time_last_heartbeat
+
+    time_last_heartbeat = msg.stamp
 
 
 def estop_physical_button_callback(msg):
@@ -163,6 +170,7 @@ def write_to_redis(status_msg):
     redis.set("requested_speed", status_msg.requested_speed)
     redis.set("requested_road_angle", status_msg.requested_road_angle)
     redis.set("estop_state", str(status_msg.estop_state))
+    redis.set("estop_heartbeat", str(status_msg.estop_heartbeat))
     redis.set("estop_physical_button", str(status_msg.estop_physical_button))
     redis.set("estop_wireless_button", str(status_msg.estop_wireless_button))
     redis.set("estop_software_button", str(status_msg.estop_software_button))
@@ -172,12 +180,19 @@ def publish_status(TimerEvent):
     """Create and publish status message. Rate controlled by ropy.Timer"""
     global accelerator_percent, brake_percent, road_angle, speed, speed_limit, gear
     global requested_speed, requested_road_angle, enabled
-    global estop_state, estop_physical_button, estop_wireless_button, estop_software_button
+    global estop_state, estop_heartbeat, estop_physical_button, estop_wireless_button, estop_software_button
+    global time_last_heartbeat, last_twist_time
 
     # Check if Twist message has timed out - set to 0 if so
-    if rospy.Time.now() - last_twist_time > rospy.Duration(twist_timeout):
+    if rospy.Time.now() - last_twist_time > twist_timeout:
         requested_speed = 0
         requested_road_angle = 0
+
+    # Check if received heartbeat is within timeout
+    if rospy.Time.now() - time_last_heartbeat > heartbeat_timeout:
+        estop_heartbeat = False
+    else:
+        estop_heartbeat = True
 
     # Create and publish status message
     status = ActorStatus()
@@ -206,6 +221,7 @@ def publish_status(TimerEvent):
 
     # E-Stop
     status.estop_state = estop_state
+    status.estop_heartbeat = estop_heartbeat
     status.estop_physical_button = estop_physical_button
     status.estop_wireless_button = estop_wireless_button
     status.estop_software_button = estop_software_button
@@ -242,6 +258,7 @@ globals_dict = {
     "requested_road_angle": 0.0,
     "enabled": False,
     "estop_state": False,
+    "estop_heartbeat": False,
     "estop_physical_button": False,
     "estop_wireless_button": False,
     "estop_software_button": False,
@@ -259,6 +276,7 @@ speed_limit = rospy.get_param("speed_limit", -1.0)  # incase control node's dyna
 # Define subscribers -----
 rospy.Subscriber(rospy.get_param("enabled"), Bool, enabled_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("estop_state"), Bool, estop_state_callback, queue_size=1)
+rospy.Subscriber(rospy.get_param("estop_heartbeat"), Header, estop_heartbeat_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("estop_physical_button"), Bool, estop_physical_button_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("estop_wireless_button"), Bool, estop_wireless_button_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("estop_software_button"), Bool, estop_software_button_callback, queue_size=1)
@@ -267,9 +285,12 @@ rospy.Subscriber(rospy.get_param("report_brakes"), BrakeReport, report_brakes_ca
 rospy.Subscriber(rospy.get_param("report_steering"), SteeringReport, report_steering_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("report_gear"), GearReport, report_gear_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("drive"), Twist, drive_twist_callback, queue_size=1)
-twist_timeout = 0.1  # 100ms
+twist_timeout = rospy.Duration(0.1)  # 100ms
 last_twist_time = rospy.Time(0)
-rospy.Timer(rospy.Duration(1.0), speed_limit_callback)  # Check speed limit every 1 second
+time_last_heartbeat = rospy.Time(0)
+heartbeat_timeout = rospy.Duration(1 / 10)  # 10Hz
+# NOTE: Not displaying speed limit at the moment
+# rospy.Timer(rospy.Duration(1.0), speed_limit_callback)  # Check speed limit every 1 second
 
 # Status publishers
 pub_status = rospy.Publisher(topic_status, ActorStatus, queue_size=10)

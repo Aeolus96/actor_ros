@@ -71,7 +71,8 @@ def publish_vehicle_controls(TimerEvent) -> None:
         rospy.logwarn("Timed out waiting for twist message")
         return
 
-    enable_dbw()
+    # NOTE: If needed, enable everytime. Usually not needed to prevent re-enabling after an error or override
+    # enable_dbw()
 
     # Speed -------------------------------------------------------------------
     requested_speed = speed_limiter(msg_twist_buffer.linear.x)
@@ -105,7 +106,7 @@ def publish_ulc_speed(speed: float) -> None:
     ulc_cmd.enable_shifting = True
     ulc_cmd.shift_from_park = True
 
-    ulc_cmd.linear_velocity = speed
+    ulc_cmd.linear_velocity = round((speed / 2.237), 3)  # Convert mph to m/s
     ulc_cmd.linear_accel = 0.0
     ulc_cmd.linear_decel = 0.0
     ulc_cmd.jerk_limit_throttle = 0.0

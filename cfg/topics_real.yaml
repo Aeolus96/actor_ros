@@ -1,3 +1,5 @@
+# These topics are imported at launch time and cannot be changed during runtime
+
 # All real vehicle related topics go here
 
 # Actuators this node publishes to (real vehicle)
@@ -24,6 +26,7 @@ status: /actor/status
 
 # E-Stop related topics go here
 estop_state: /actor/estop/state
+estop_heartbeat: /actor/estop/heartbeat_edge
 estop_physical_button: /actor/estop/physical_button
 estop_wireless_button: /actor/estop/wireless_button
 estop_software_button: /actor/estop/software_button

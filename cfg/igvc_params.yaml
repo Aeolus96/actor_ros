@@ -1,0 +1,75 @@
+# Make sure not to use the same name for any item because they will be overwritten
+
+publishers:
+  # Drive Commands --------------------
+  - name: pub_twist
+    topic: /actor/cmd_vel
+    msg_file: geometry_msgs.msg
+    msg_type: Twist
+  - name: pub_brakes
+    topic: /vehicle/brake_cmd
+    msg_file: dbw_polaris_msgs.msg
+    msg_type: BrakeCmd
+  # Yolo Detection --------------------
+  - name: pub_yolo
+    topic: /yolo_look_for
+    msg_file: std_msgs.msg
+    msg_type: String
+
+subscribers:
+  # Lane Center -----------------------
+  - topic: /lane_center
+    msg_file: std_msgs.msg
+    msg_type: Float32
+  - topic: /lane_center_left_lane
+    msg_file: std_msgs.msg
+    msg_type: Bool
+  - topic: /lane_center_right_lane
+    msg_file: std_msgs.msg
+    msg_type: Bool
+  # Lidar -----------------------------
+  - topic: /lidar_zone_0_closest
+    msg_file: std_msgs.msg
+    msg_type: Float32
+  - topic: /lidar_zone_1_closest
+    msg_file: std_msgs.msg
+    msg_type: Float32
+  - topic: /lidar_zone_2_closest
+    msg_file: std_msgs.msg
+    msg_type: Float32
+  # Simulator Stop Sign Detection -----
+  - topic: /stop_sign_dectected
+    # yes, it is dectected in the simulator
+    msg_file: std_msgs.msg
+    msg_type: UInt8
+  # Barrel Detection ------------------
+  - topic: /detect_barrel_vision
+    msg_file: std_msgs.msg
+    msg_type: Bool
+  # Road Object Detection -------------
+  - topic: /detect_road_obj
+    msg_file: std_msgs.msg
+    msg_type: Bool
+  # Tire Detection --------------------
+  - topic: /actor_nav/trigger
+    msg_file: std_msgs.msg
+    msg_type: String
+  # Yolo Object Detection -------------
+  - topic: /stop_sign_detected
+    msg_file: std_msgs.msg
+    msg_type: UInt8
+  - topic: /stop_sign_size
+    msg_file: std_msgs.msg
+    msg_type: UInt32
+  - topic: /tire_detected
+    msg_file: std_msgs.msg
+    msg_type: UInt8
+  - topic: /tire_size
+    msg_file: std_msgs.msg
+    msg_type: UInt32
+  - topic: /person_detected
+    msg_file: std_msgs.msg
+    msg_type: UInt8
+  - topic: /person_size
+    msg_file: std_msgs.msg
+    msg_type: UInt32
