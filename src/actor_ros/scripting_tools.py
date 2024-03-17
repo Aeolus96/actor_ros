@@ -1,26 +1,27 @@
 #!/usr/bin/env python3
 
 # Imports -------------------------------------------------------------------------------------------------------------
-# NOTE: A lot of these are imported to make the script more readable and enable intellisense in the IDE
+# NOTE: A lot of these are imported to make the script more readable and enable intellisense in the IDE.
+# Add them as needed in individual methods, python will only import what is needed once. Then uses it from the memory.
 
 import rospkg
 import rospy
-from dbw_polaris_msgs.msg import (  # Drive By Wire Messages
-    BrakeCmd,
-    BrakeReport,
-    Gear,
-    GearCmd,
-    GearReport,
-    SteeringCmd,
-    SteeringReport,
-    ThrottleCmd,
-    ThrottleReport,
-)
-from geometry_msgs.msg import Twist  # ROS Messages
-from std_msgs.msg import Bool, Empty, Float32, Float64, Int32, String, UInt8  # ROS Messages
+# from dbw_polaris_msgs.msg import (  # Drive By Wire Messages
+#     BrakeCmd,
+#     BrakeReport,
+#     Gear,
+#     GearCmd,
+#     GearReport,
+#     SteeringCmd,
+#     SteeringReport,
+#     ThrottleCmd,
+#     ThrottleReport,
+# )
 
-import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
-from actor_ros.msg import ActorStatus  # Custom ROS Message
+# from std_msgs.msg import Bool, Empty, Float32, Float64, Int32, String, UInt8  # ROS Messages
+# from geometry_msgs.msg import Twist  # ROS Messages
+# import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
+# from actor_ros.msg import ActorStatus  # Custom ROS Message
 
 # End of Imports ------------------------------------------------------------------------------------------------------
 
@@ -30,6 +31,7 @@ class ActorScriptTools:
 
     def __init__(self, cfg_file_name: str = None):
         """Initializes ROS node, makes publishers and subscribers"""
+        import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
 
         # Initialize ROS Node -------------------------------------------------
         rospy.init_node("igvc_script")
@@ -76,6 +78,7 @@ class ActorScriptTools:
     def stop_vehicle(self, using_brakes: bool = False, duration: float = 3.0) -> bool:
         """Stop the vehicle by publishing either a zero twist message or a brake pedal command
         and wait for duration seconds"""
+        from dbw_polaris_msgs.msg import BrakeCmd
 
         self.print_highlights(f"Stopping Vehicle for {round(duration, 2)}s...")
         start_time = rospy.Time.now()
@@ -104,6 +107,7 @@ class ActorScriptTools:
     def shift_gear(self, gear_input: str) -> bool:
         """Shifts gear using string input. Please stop the vehicle first before calling this method.
         Gears avaiilable: NONE, REVERSE, NEUTRAL, DRIVE."""
+        from dbw_polaris_msgs.msg import Gear, GearCmd
 
         gear_input = gear_input.upper()
         gear_dict = {
@@ -137,6 +141,7 @@ class ActorScriptTools:
         """Publishes a twist message to drive the vehicle.
         It allows optional function-based speed and angle control.
         Make sure the vehicle is stopped before requesting a direction change."""
+        from geometry_msgs.msg import Twist  # ROS Messages
 
         if callable(speed):  # Use function-based speed control
             speed = speed()

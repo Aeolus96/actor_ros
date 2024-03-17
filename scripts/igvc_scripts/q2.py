@@ -10,10 +10,13 @@ actor = actor_ros.scripting_tools.ActorScriptTools()  # ACTor Scripting Tools in
 
 # TODO: Add your code from here
 
+import sys
 import time
 
-print("Hello World!")
+print("Hello World!", file=sys.stdout)
+print("Error!", file=sys.stderr)
 for i in range(20):
     print(i)
     time.sleep(1)
+print("Error!", file=sys.stderr)
 print("Goodbye World!")

@@ -279,6 +279,7 @@ class ScriptPlayer:
         self.process = None
         self.is_running = False
         self.output_text = ""
+        self.process_return_code = ""
 
     def __del__(self):
         """Cleanup method"""
@@ -334,7 +335,8 @@ class ScriptPlayer:
 
     def monitor_process(self):
         # Wait for the subprocess to finish and get the return code
-        return f"Script exited with return code: {self.process.wait()}"
+        self.process_return_code = self.process.wait()
+        return
 
     # def monitor_process(self):
     #     # Wait for the subprocess to finish and get the return code
@@ -361,7 +363,7 @@ class ScriptPlayer:
 
         while True:
             line = stream.readline()
-            self.output_text += line
+            self.output_text += line + "\n"
             if line == "" and self.process.poll() is not None:
                 break
 

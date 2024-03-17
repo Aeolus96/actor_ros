@@ -74,7 +74,8 @@ with ui.card() as script_card:
     async def execute_file():
         """Execute the selected file in a separate process"""
         ui.notify(script_player.execute())
-        ui.notify(script_player.monitor_process())  # Holds this function until the script is finished
+        await script_player.monitor_process()
+        ui.notify(script_player.process_return_code)  # Holds this function until the script is finished
 
     # Dropdown Menu -----
     file_select_dropdown = (
