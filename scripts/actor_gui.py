@@ -16,8 +16,8 @@ from nicegui import ui  # NiceGUI library
 # actor = actor_tools.ActorStatusReader(read_from_redis=True)
 # ui.timer(interval=(1 / 60), callback=lambda: actor())  # Update status from database with a timer
 # Simulated Values ------------------------------
-actor = actor_tools.ActorStatusReader(simulate_for_testing=True)
-ui.timer(interval=(1), callback=lambda: actor())  # Update status from database with a timer
+status = actor_tools.ActorStatusReader(simulate_for_testing=True)
+ui.timer(interval=(1), callback=lambda: status())  # Update status from database with a timer
 
 # E-STOP ----------------------------------------
 e_stop = actor_tools.EStopManager()
@@ -121,14 +121,14 @@ with ui.footer(value=True) as footer:
             ui.slider(min=20, max=80, value=0)
             .props("readonly vertical reverse color=green-10 track-size=10px thumb-size=0px")
             .classes("h-full row-span-3 my-auto pb-2 justify-end")
-            .bind_value_from(actor, "accelerator_percent")
+            .bind_value_from(status, "accelerator_percent")
         )
         # Brakes
         brakes_slider = (
             ui.slider(min=0, max=100, value=0)
             .props("readonly vertical reverse color=red-10 track-size=10px thumb-size=0px")
             .classes("h-full row-span-3 my-auto pb-2 justify-start")
-            .bind_value_from(actor, "brakes_percent")
+            .bind_value_from(status, "brakes_percent")
         )
 
     # Steering -----
@@ -140,9 +140,9 @@ with ui.footer(value=True) as footer:
             ui.slider(min=-40, max=40, value=-37)
             .props("readonly selection-color=transparent thumb-color=blue-grey-7 thumb-size=20px track-size=10px")
             .classes("w-full m-auto")
-            .bind_value_from(actor, "road_angle")
+            .bind_value_from(status, "road_angle")
         )
-        ui.label("DEG").classes(footer_label_classes).bind_text_from(actor, "road_angle")
+        ui.label("DEG").classes(footer_label_classes).bind_text_from(status, "road_angle")
 
     # Auto Pilot -----
     with ui.card() as auto_pilot_card:
@@ -153,10 +153,10 @@ with ui.footer(value=True) as footer:
             ui.spinner("bars")
             .props(accent_color_props)
             .classes(button_classes + " p-2")
-            .bind_visibility_from(actor, "is_enabled")
+            .bind_visibility_from(status, "is_enabled")
         )
-        ui.label("ENABLED").classes(footer_label_classes + " my-auto").bind_visibility_from(actor, "is_enabled")
-        ui.label("DISABLED").classes(footer_label_classes + " my-auto").bind_visibility_from(actor, "not_is_enabled")
+        ui.label("ENABLED").classes(footer_label_classes + " my-auto").bind_visibility_from(status, "is_enabled")
+        ui.label("DISABLED").classes(footer_label_classes + " my-auto").bind_visibility_from(status, "not_is_enabled")
         # NOTE: not_is_enabled is a relational property written in the status node. It is solely used for GUI purposes
 
     # Speed -----
@@ -167,7 +167,7 @@ with ui.footer(value=True) as footer:
         speed_label = (
             ui.label("04.35")
             .classes("select-none font-bold text-stone-400 text-4xl m-auto")
-            .bind_text_from(actor, "speed")
+            .bind_text_from(status, "speed")
         )
         ui.label("MPH").classes(footer_label_classes)
 
@@ -177,7 +177,7 @@ with ui.footer(value=True) as footer:
 
         ui.label("GEAR").classes(footer_label_classes)
         gear_label = ui.label("N").classes("select-none font-bold text-stone-400 text-6xl m-auto")
-        gear_label.bind_text_from(actor, "gui_gear")  # TODO: bind this to the status node
+        gear_label.bind_text_from(status, "gui_gear")
 
 
 # Floating area -------------------------------------------------------------------------
@@ -189,7 +189,6 @@ with ui.page_sticky(position="bottom", x_offset=20, y_offset=20):
 
         ui.notify("E-STOP ACTIVATED", type="warning", position="center")
 
-        # TODO: bind these to actual state using the status node
         e_stop_button.props("color=dark text-color=positive")
         e_stop_spinner.props("color=positive")
 
@@ -202,16 +201,16 @@ with ui.page_sticky(position="bottom", x_offset=20, y_offset=20):
         e_stop_spinner.props("color=negative")
 
     # E-Stop button -----
-    with ui.button(on_click=lambda: activate_e_stop() if not actor.e_stop_active else reset_e_stop()) as e_stop_button:
+    with ui.button(on_click=lambda: activate_e_stop() if not status.estop_state else reset_e_stop()) as e_stop_button:
         e_stop_button.props(button_props + " color=warning text-color=negative")
         e_stop_button.classes("w-20 h-20 m-auto text-bold text-center")
-        e_stop_button.bind_text_from(actor, "e_stop_text")  # TODO: add e_stop_text to Status node
+        e_stop_button.bind_text_from(status, "e_stop_text")
 
         e_stop_spinner = (
             ui.spinner("puff", size="20px")
             .props("color=negative")
             .classes("m-auto")
-            .bind_visibility_from(actor, "e_stop_heartbeat")  # TODO: add e_stop_heartbeat to Status node
+            .bind_visibility_from(status, "estop_heartbeat")
         )
 
 

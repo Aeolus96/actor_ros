@@ -21,6 +21,7 @@ float32 requested_road_angle    # Requested road angle in degrees
 
 # E-Stop Status
 bool estop_state                # E-Stop state
+bool estop_heartbeat            # Heartbeat (Edge computer - Rpi)
 bool estop_physical_button      # E-Stop physical button
 bool estop_wireless_button      # E-Stop wireless button
 bool estop_software_button      # E-Stop software button

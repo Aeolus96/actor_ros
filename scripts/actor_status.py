@@ -154,26 +154,31 @@ def estop_software_button_callback(msg):
 
 def write_to_redis(status_msg):
     """Write statuses to redis server"""
+    global redis
 
-    # Write values to redis server
-    # NOTE: Values are written to redis server as strings
-    redis.set("is_simulated", str(status_msg.is_simulated))
-    redis.set("is_autonomous", str(status_msg.is_autonomous))
-    redis.set("is_tele_operated", str(status_msg.is_tele_operated))
-    redis.set("accelerator_percent", status_msg.accelerator_percent)
-    redis.set("brake_percent", status_msg.brake_percent)
-    redis.set("steering_wheel_angle", status_msg.steering_wheel_angle)
-    redis.set("road_angle", status_msg.road_angle)
-    redis.set("gear", status_msg.gear)
-    redis.set("speed", status_msg.speed)
-    redis.set("is_enabled", str(status_msg.is_enabled))
-    redis.set("requested_speed", status_msg.requested_speed)
-    redis.set("requested_road_angle", status_msg.requested_road_angle)
-    redis.set("estop_state", str(status_msg.estop_state))
-    redis.set("estop_heartbeat", str(status_msg.estop_heartbeat))
-    redis.set("estop_physical_button", str(status_msg.estop_physical_button))
-    redis.set("estop_wireless_button", str(status_msg.estop_wireless_button))
-    redis.set("estop_software_button", str(status_msg.estop_software_button))
+    if not redis.closed:  # Check if redis server is connected
+        # Write values to redis server
+        # NOTE: Values are written to redis server as strings
+        redis.set("is_simulated", str(status_msg.is_simulated))
+        redis.set("is_autonomous", str(status_msg.is_autonomous))
+        redis.set("is_tele_operated", str(status_msg.is_tele_operated))
+
+        redis.set("accelerator_percent", status_msg.accelerator_percent)
+        redis.set("brake_percent", status_msg.brake_percent)
+        redis.set("steering_wheel_angle", status_msg.steering_wheel_angle)
+        redis.set("road_angle", status_msg.road_angle)
+        redis.set("gear", status_msg.gear)
+        redis.set("speed", status_msg.speed)
+
+        redis.set("is_enabled", str(status_msg.is_enabled))
+        redis.set("requested_speed", status_msg.requested_speed)
+        redis.set("requested_road_angle", status_msg.requested_road_angle)
+
+        redis.set("estop_state", str(status_msg.estop_state))
+        redis.set("estop_heartbeat", str(status_msg.estop_heartbeat))
+        redis.set("estop_physical_button", str(status_msg.estop_physical_button))
+        redis.set("estop_wireless_button", str(status_msg.estop_wireless_button))
+        redis.set("estop_software_button", str(status_msg.estop_software_button))
 
 
 def publish_status(TimerEvent):
@@ -301,6 +306,7 @@ rospy.loginfo("actor_status node running.")
 try:
     rospy.spin()
 except rospy.ROSInterruptException:
+    redis.close()
     redis_server_process.terminate()
     pass
 

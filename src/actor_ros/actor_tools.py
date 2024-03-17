@@ -30,7 +30,7 @@ class ActorStatusReader:
     def __init__(self, read_from_redis=False, simulate_for_testing=False):
         """Initialize the ACTor Status Message Reader"""
 
-        self.simulate_values = simulate_for_testing
+        self.simulating_values = simulate_for_testing
 
         self.is_simulated = False
         self.is_autonomous = False
@@ -45,23 +45,17 @@ class ActorStatusReader:
         self.requested_speed = 0
         self.requested_road_angle = 0
         self.estop_state = False
+        self.estop_heartbeat = False
         self.estop_physical_button = False
         self.estop_wireless_button = False
         self.estop_software_button = False
 
-        # e_stop/state - Bool
-        # e_stop/heartbeat - Header
-        # e_stop/physical_button - Bool
-        # e_stop/wireless_button - Bool
-
-        # e_stop/trigger - Empty
-        # e_stop/reset - Empty
-
         # Values used only for GUI
+        self.not_is_enabled = not self.is_enabled
         self.gui_gear = self.gear[0]
         self.gui_e_stop_text = "STOP" if self.estop_state else "RESET"
 
-        if simulate_for_testing:
+        if self.simulating_values:
             self.simulate_values()
 
         else:
@@ -85,10 +79,11 @@ class ActorStatusReader:
 
     def __call__(self):
         """Call method to update the latest ACTor Status values"""
-        if self.simulate_values:
+        if self.simulating_values:
             self.simulate_values()
         else:
-            self.redis_callback()
+            if hasattr(self, "redis"):
+                self.redis_callback()
 
     def __del__(self):
         """Cleanup method. Closes Redis connection"""
@@ -117,7 +112,8 @@ class ActorStatusReader:
         self.requested_road_angle = ActorStatus_msg.requested_road_angle
 
         # E-stop
-        self.estop_state = ActorStatus_msg.e_stop_state
+        self.estop_state = ActorStatus_msg.estop_state
+        self.estop_heartbeat = ActorStatus_msg.estop_heartbeat
         self.estop_physical_button = ActorStatus_msg.estop_physical_button
         self.estop_wireless_button = ActorStatus_msg.estop_wireless_button
         self.estop_software_button = ActorStatus_msg.estop_software_button
@@ -165,15 +161,23 @@ class ActorStatusReader:
         self.is_simulated = self.to_bool(self.redis.get("is_simulated"))
         self.is_autonomous = self.to_bool(self.redis.get("is_autonomous"))
         self.is_tele_operated = self.to_bool(self.redis.get("is_tele_operated"))
+
         self.accelerator_percent = self.to_float(self.redis.get("accelerator_percent"))
         self.brake_percent = self.to_float(self.redis.get("brake_percent"))
         self.steering_wheel_angle = self.to_float(self.redis.get("steering_wheel_angle"))
         self.road_angle = self.to_float(self.redis.get("road_angle"))
         self.speed = self.to_float(self.redis.get("speed"))
         self.gear = self.redis.get("gear")
+
         self.is_enabled = self.to_bool(self.redis.get("is_enabled"))
         self.requested_speed = self.to_float(self.redis.get("requested_speed"))
         self.requested_road_angle = self.to_float(self.redis.get("requested_road_angle"))
+
+        self.estop_state = self.to_bool(self.redis.get("estop_state"))
+        self.estop_heartbeat = self.to_bool(self.redis.get("estop_heartbeat"))
+        self.estop_physical_button = self.to_bool(self.redis.get("estop_physical_button"))
+        self.estop_wireless_button = self.to_bool(self.redis.get("estop_wireless_button"))
+        self.estop_software_button = self.to_bool(self.redis.get("estop_software_button"))
 
     def simulate_values(self) -> None:
         """Simulate variables for testing purposes. Used to test the GUI"""
@@ -192,7 +196,7 @@ class ActorStatusReader:
         self.requested_speed = random.uniform(0, 15)  # 3.45
         self.requested_road_angle = random.uniform(-37.5, 37.5)  # -9.0
 
-        # NOTE: These values can be randomized if needed
+        # NOTE: These values can be changed in desired way if needed
 
     # End of class ------------------------
 
