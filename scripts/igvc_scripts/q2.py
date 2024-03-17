@@ -13,5 +13,7 @@ actor = actor_ros.scripting_tools.ActorScriptTools()  # ACTor Scripting Tools in
 import time
 
 print("Hello World!")
-time.sleep(15)
+for i in range(20):
+    print(i)
+    time.sleep(1)
 print("Goodbye World!")

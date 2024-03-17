@@ -310,7 +310,7 @@ class ScriptPlayer:
         try:
             # NOTE: "rosrun actor_ros <script_name>" can be used, this will likely impact how logging and stdout works
             self.process = subprocess.Popen(
-                ["python3", f"{self.active_directory}/{self.selected_file}"],
+                [f"python3 {self.active_directory}{self.selected_file}"],
                 shell=True,  # Needed to source ROS using .bashrc
                 stdout=subprocess.PIPE,  # Captures print() output # NOTE: ROS logging should be used to maintain logs
                 stderr=subprocess.PIPE,  # Captures Raised Errors and Exceptions
@@ -324,7 +324,7 @@ class ScriptPlayer:
             Thread(target=self.read_output, args=(self.process.stderr,), daemon=True).start()
 
             # Start a separate thread to monitor the process and check return code
-            Thread(target=self.monitor_process, daemon=True).start()
+            # Thread(target=self.monitor_process, daemon=True).start()
             return "Script started running"
 
         except Exception as e:
@@ -334,29 +334,39 @@ class ScriptPlayer:
 
     def monitor_process(self):
         # Wait for the subprocess to finish and get the return code
-        return_code = self.process.wait()
+        return f"Script exited with return code: {self.process.wait()}"
 
-        # Update the running flag
-        self.is_running = False
+    # def monitor_process(self):
+    #     # Wait for the subprocess to finish and get the return code
+    #     return_code = self.process.wait()
 
-        # Check the return code to determine if the script completed successfully
-        if return_code == 0:
-            self.process = None
-            return "Script finished running"
+    #     # Update the running flag
+    #     self.is_running = False
 
-        else:
-            self.process = None
-            return f"Script exited with non-zero return code: {return_code}"
+    #     # Check the return code to determine if the script completed successfully
+    #     if return_code == 0:
+    #         self.process = None
+    #         return "Script finished running"
+
+    #     else:
+    #         self.process = None
+    #         return f"Script exited with non-zero return code: {return_code}"
 
     def read_output(self, stream):
         """Read output stream and add lines into output_text
         stream is direct input stream from stdout or stderr"""
 
-        for line in stream:
+        # for line in self.process.stdout:
+        #     self.output_text.join(line)
+
+        while True:
+            line = stream.readline()
             self.output_text += line
+            if line == "" and self.process.poll() is not None:
+                break
 
         # When EOF is reached (process is terminated), set the running flag to False
-        self.is_running = False
+        # self.is_running = False
 
     def stop_script(self, timeout=5.0):
         """Stop the currently running script"""

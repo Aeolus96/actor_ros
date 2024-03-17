@@ -71,6 +71,11 @@ with ui.card() as script_card:
         # script_player.selected_file = filename
         ui.notify(f"Script selected: {script_player.selected_file}")
 
+    async def execute_file():
+        """Execute the selected file in a separate process"""
+        ui.notify(script_player.execute())
+        ui.notify(script_player.monitor_process())  # Holds this function until the script is finished
+
     # Dropdown Menu -----
     file_select_dropdown = (
         ui.select(
@@ -99,10 +104,15 @@ with ui.card() as script_card:
 
     # Play Button -----
     play_button = (
-        ui.button("Play", on_click=lambda: ui.notify(script_player.execute()))
+        ui.button("Play", on_click=lambda: execute_file())
         .classes(button_classes + " col-span-1 row-span-1")
         .props(button_props)
     )
+
+with ui.card() as log_card:
+    log_card.classes(grid_card_classes + " grid-cols-3 grid-rows-2")
+    with ui.scroll_area().classes("col-span-3 row-span-2"):
+        ui.label().bind_text_from(script_player, "output_text")
 
 
 # Footer --------------------------------------------------------------------------------
@@ -219,4 +229,4 @@ with ui.page_sticky(position="bottom", x_offset=20, y_offset=20):
 # Run GUI -------------------------------------------------------------------------------------------------------------
 # NOTE: Needs to be the last element to run the GUI.
 # NOTE: If there are any changes made to this script while it is running, it will restart automatically
-ui.run(dark=True, reload=True)
+ui.run(dark=True, reload=True, show=False)
