@@ -306,7 +306,7 @@ class ScriptPlayer:
         try:
             # NOTE: "rosrun actor_ros <script_name>" can be used, this will likely impact how logging and stdout works
             self.process = subprocess.Popen(
-                [f"python3 {self.active_directory}{self.selected_file}"],
+                [f"python3 -u {self.active_directory}{self.selected_file}"],
                 shell=True,  # Needed to source ROS using .bashrc
                 stdout=subprocess.PIPE,  # Captures print() output # NOTE: ROS logging should be used to maintain logs
                 stderr=subprocess.STDOUT,  # Captures Raised Errors and Exceptions
