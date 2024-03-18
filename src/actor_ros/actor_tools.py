@@ -308,15 +308,15 @@ class ScriptPlayer:
             self.process = subprocess.Popen(
                 [f"python3 {self.active_directory}{self.selected_file}"],
                 shell=True,  # Needed to source ROS using .bashrc
-                stdout=subprocess.PIPE,  # Captures print() output # NOTE: ROS logging should be used to maintain logs
-                stderr=subprocess.PIPE,  # Captures Raised Errors and Exceptions
+                # stdout=subprocess.PIPE,  # Captures print() output # NOTE: ROS logging should be used to maintain logs
+                # stderr=subprocess.PIPE,  # Captures Raised Errors and Exceptions
                 universal_newlines=True,
                 text=True,
                 bufsize=1,
             )
 
             # Start a separate thread to monitor the process
-            Thread(target=self.monitor_process, daemon=True).start()
+            # Thread(target=self.monitor_process, daemon=True).start()
             return "Script started running"
 
         except Exception as e:
