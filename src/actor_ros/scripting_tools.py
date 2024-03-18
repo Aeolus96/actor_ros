@@ -42,6 +42,7 @@ class ActorScriptTools:
         self.package_directory = rospkg.RosPack().get_path("actor_ros")
         file_name = "igvc_params.yaml" if cfg_file_name is None else cfg_file_name
         params = actor_tools.YAMLReader(file_path=self.package_directory + "/cfg/" + file_name)
+        rospy.sleep(1)  # Wait for parameters to be loaded
 
         # Make Publishers -----------------------------------------------------
         for publisher in params.publishers:

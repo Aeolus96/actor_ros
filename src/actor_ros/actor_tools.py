@@ -318,7 +318,7 @@ class ScriptPlayer:
             # Start a separate thread to monitor the process
             Thread(target=self.monitor_process, daemon=True).start()
             # Start a separate thread to read stdout and stderr streams
-            Thread(target=self.read_output, args=(self.process.stdout,), daemon=True).start()
+            Thread(target=self.read_output, daemon=True).start()
 
             return "Script started running"
 
@@ -334,12 +334,13 @@ class ScriptPlayer:
         self.is_running = False
         self.output_text.append(f"Script returncode: {self.process_return_code}")
 
-    def read_output(self, stream):
+    def read_output(self):
         """Read output stream and add lines into output_text
         stream is direct input stream from stdout or stderr"""
 
         while self.process.poll() is None:
-            line = stream.readline()
+            print("========")
+            line = self.process.stdout.readline()
             print(line, end="")  # Display the line in the shell
             line = line.rstrip("\n")  # Remove the newline character
             self.output_text.append(line)  # Store the line in the output_text list
