@@ -32,16 +32,16 @@ class ActorScriptTools:
 
     def __init__(self, cfg_file_name: str = None):
         """Initializes ROS node, makes publishers and subscribers"""
-        import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
+        import actor_ros  # ACTor specific utility functions
 
         # Initialize ROS Node -------------------------------------------------
         rospy.init_node("igvc_script")
-        self.status = actor_tools.ActorStatusReader()  # Read ACTor Status messages
+        self.status = actor_ros.actor_tools.ActorStatusReader()  # Read ACTor Status messages
 
         # Import IGVC Parameters from YAML file -------------------------------
         self.package_directory = rospkg.RosPack().get_path("actor_ros")
         file_name = "igvc_params.yaml" if cfg_file_name is None else cfg_file_name
-        params = actor_tools.YAMLReader(file_path=self.package_directory + "/cfg/" + file_name)
+        params = actor_ros.actor_tools.YAMLReader(file_path=self.package_directory + "/cfg/" + file_name)
 
         # Make Publishers -----------------------------------------------------
         for publisher in params.publishers:

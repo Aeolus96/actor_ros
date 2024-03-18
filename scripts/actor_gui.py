@@ -71,15 +71,13 @@ with ui.card() as script_card:
         # script_player.selected_file = filename
         ui.notify(f"Script selected: {script_player.selected_file}")
 
-    async def execute_file():
+    async def execute_file(text: str) -> None:
         """Execute the selected file in a separate process"""
+
+        ui.notify(text)
         ui.notify(script_player.execute())
         play_button.set_text("Stop")
-        print(play_button.text)
-        # TODO
-
-        result = await run.io_bound(script_player.monitor_process())  # Holds until the script is finished
-        ui.notify(f"Script ended: {result}")
+        play_button.on("click", lambda: script_player.stop_script())
 
     # Dropdown Menu -----
     file_select_dropdown = (
@@ -102,9 +100,10 @@ with ui.card() as script_card:
 
     # Play/Stop Button -----
     play_button = (
-        ui.button("Play", on_click=lambda: execute_file())
+        ui.button("Play")
         .classes(button_classes + " col-span-1 row-span-1")
         .props(button_props)
+        .on("click", lambda e: execute_file(e.value))
     )
 
 with ui.card() as log_card:
@@ -187,14 +186,14 @@ with ui.footer(value=True) as footer:
 
         ui.label("GEAR").classes(footer_label_classes)
         gear_label = ui.label("N").classes("select-none font-bold text-stone-400 text-6xl m-auto")
-        gear_label.bind_text_from(status, "gui_gear")
+        gear_label.bind_text_from(status, "gear", backward=lambda gear: gear[0])  # Gear Initial
 
 
 # Floating area -------------------------------------------------------------------------
 # NOTE: needs to be the last element to display on top of all other content
 with ui.page_sticky(position="bottom", x_offset=20, y_offset=20):
     # UI functions only - ROS stuff handled separately
-    def activate_e_stop():
+    async def activate_e_stop():
         e_stop()  # Using EStopManager
 
         ui.notify("E-STOP ACTIVATED", type="warning", position="center")
@@ -202,7 +201,7 @@ with ui.page_sticky(position="bottom", x_offset=20, y_offset=20):
         e_stop_button.props("color=dark text-color=positive")
         e_stop_spinner.props("color=positive")
 
-    def reset_e_stop():
+    async def reset_e_stop():
         e_stop.reset()  # Using EStopManager
 
         ui.notify("E-STOP RESET", type="positive", position="center")
@@ -214,7 +213,7 @@ with ui.page_sticky(position="bottom", x_offset=20, y_offset=20):
     with ui.button(on_click=lambda: activate_e_stop() if not status.estop_state else reset_e_stop()) as e_stop_button:
         e_stop_button.props(button_props + " color=warning text-color=negative")
         e_stop_button.classes("w-20 h-20 m-auto text-bold text-center")
-        e_stop_button.bind_text_from(status, "e_stop_text")
+        e_stop_button.bind_text_from(status, "estop_state", backward=lambda state: "RESET" if state else "STOP")
 
         e_stop_spinner = (
             ui.spinner("puff", size="20px")

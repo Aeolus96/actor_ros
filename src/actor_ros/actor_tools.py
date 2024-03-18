@@ -50,11 +50,6 @@ class ActorStatusReader:
         self.estop_wireless_button = False
         self.estop_software_button = False
 
-        # Values used only for GUI
-        self.not_is_enabled = not self.is_enabled
-        self.gui_gear = self.gear[0]
-        self.gui_e_stop_text = "STOP" if self.estop_state else "RESET"
-
         if self.simulating_values:
             self.simulate_values()
 
@@ -191,7 +186,7 @@ class ActorStatusReader:
         self.steering_wheel_angle = round(random.uniform(-600, 600), 2)
         self.road_angle = round(random.uniform(-37.5, 37.5), 2)
         self.speed = round(random.uniform(0, 15), 2)
-        self.gear = random.choice(["PARK", "REVERSE", "NEUTRAL", "DRIVE"])  # "DRIVE"
+        self.gear = random.choice(["PARK", "REVERSE", "NEUTRAL", "DRIVE"])
         self.is_enabled = True
         self.requested_speed = round(random.uniform(0, 15), 2)
         self.requested_road_angle = round(random.uniform(-37.5, 37.5), 2)
