@@ -12,7 +12,9 @@ import rospy  # ROS Python API
 
 
 print("Hello World!", file=sys.stdout)
+print("Error message", file=sys.stderr)
 for i in range(10):
     print(i)
     time.sleep(1)
+print("Error message", file=sys.stderr)
 print("Goodbye World!")
