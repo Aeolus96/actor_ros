@@ -4,7 +4,7 @@ import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
 import rospkg  # ROS Package Utilities
 
 # from local_file_picker import local_file_picker  # local_file_picker (NiceGUI example)
-from nicegui import ui  # NiceGUI library
+from nicegui import ui, run  # NiceGUI library
 
 # ROS I/O -------------------------------------------------------------------------------------------------------------
 # NOTE: using a rospy node should be avoided in this python script.
@@ -74,8 +74,12 @@ with ui.card() as script_card:
     async def execute_file():
         """Execute the selected file in a separate process"""
         ui.notify(script_player.execute())
-        await script_player.monitor_process()
-        ui.notify(script_player.process_return_code)  # Holds this function until the script is finished
+        play_button.set_text("Stop")
+        print(play_button.text)
+        # TODO
+
+        result = await run.io_bound(script_player.monitor_process())  # Holds until the script is finished
+        ui.notify(f"Script ended: {result}")
 
     # Dropdown Menu -----
     file_select_dropdown = (
@@ -96,14 +100,7 @@ with ui.card() as script_card:
         .props(button_props)
     )
 
-    # Stop Button -----
-    stop_button = (
-        ui.button("Stop", on_click=lambda: ui.notify(script_player.stop_script()))
-        .classes(button_classes + " col-span-1 row-span-1")
-        .props(button_props)
-    )
-
-    # Play Button -----
+    # Play/Stop Button -----
     play_button = (
         ui.button("Play", on_click=lambda: execute_file())
         .classes(button_classes + " col-span-1 row-span-1")

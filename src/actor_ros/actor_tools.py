@@ -278,7 +278,7 @@ class ScriptPlayer:
         self.selected_file = ""  # Name of the selected file with extension
         self.process = None
         self.is_running = False
-        self.output_text = ""
+        self.output_text = []
         self.process_return_code = ""
 
     def __del__(self):
@@ -306,7 +306,7 @@ class ScriptPlayer:
 
         # Set the running flag and Clear the output text to allow new output
         self.is_running = True
-        self.output_text = ""
+        self.output_text = []
 
         try:
             # NOTE: "rosrun actor_ros <script_name>" can be used, this will likely impact how logging and stdout works
@@ -336,7 +336,7 @@ class ScriptPlayer:
     def monitor_process(self):
         # Wait for the subprocess to finish and get the return code
         self.process_return_code = self.process.wait()
-        return
+        return self.process_return_code
 
     # def monitor_process(self):
     #     # Wait for the subprocess to finish and get the return code
@@ -358,12 +358,9 @@ class ScriptPlayer:
         """Read output stream and add lines into output_text
         stream is direct input stream from stdout or stderr"""
 
-        # for line in self.process.stdout:
-        #     self.output_text.join(line)
-
         while True:
             line = stream.readline()
-            self.output_text += line + "\n"
+            self.output_text.append(line)
             if line == "" and self.process.poll() is not None:
                 break
 
