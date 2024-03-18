@@ -337,9 +337,11 @@ class ScriptPlayer:
     def read_output(self):
         """Read output stream and add lines into output_text
         stream is direct input stream from stdout or stderr"""
-
+        print("start reading...")
+        i = 0
         while self.process.poll() is None:
-            print("========")
+            print(f"reading {i}...")
+            i += 1
             line = self.process.stdout.readline()
             print(line, end="")  # Display the line in the shell
             line = line.rstrip("\n")  # Remove the newline character
@@ -353,6 +355,7 @@ class ScriptPlayer:
 
         # When EOF is reached (process is terminated), set the running flag to False just in case
         self.is_running = False
+        print("End of stream")
 
     def stop_script(self, timeout=5.0):
         """Stop the currently running script"""

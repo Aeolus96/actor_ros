@@ -112,7 +112,7 @@ with ui.card() as log_card:
     log_area = (
         ui.textarea(label="OUTPUT")
         .bind_value_from(script_player, "output_text", backward=lambda x: "\n".join(x))
-        .classes("w-full h-full m-auto")
+        .classes("w-full h-fit")
     )
 
     # with ui.scroll_area().classes(" w-full h-full "):
