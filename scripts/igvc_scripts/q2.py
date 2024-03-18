@@ -14,9 +14,7 @@ import sys
 import time
 
 print("Hello World!", file=sys.stdout)
-print("Error!", file=sys.stderr)
-for i in range(20):
+for i in range(10):
     print(i)
     time.sleep(1)
-print("Error!", file=sys.stderr)
 print("Goodbye World!")

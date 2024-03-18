@@ -76,11 +76,9 @@ with ui.card() as script_card:
 
         if script_player.is_running:  # stop the script
             ui.notify(script_player.stop_script())
-            run_button.set_text("Start")
 
         else:  # start the script
             ui.notify(script_player.execute())
-            run_button.set_text("Stop")
 
     # Dropdown Menu -----
     file_select_dropdown = (
@@ -103,13 +101,18 @@ with ui.card() as script_card:
 
     # Start/Stop Button -----
     run_button = (
-        ui.button("Start", on_click=handle_file).classes(button_classes + " col-span-2 row-span-1").props(button_props)
+        ui.button("Start", on_click=handle_file)
+        .classes(button_classes + " col-span-2 row-span-1")
+        .props(button_props)
+        .bind_text_from(script_player, "is_running", lambda running: "Stop" if running else "Start")
     )
 
 with ui.card() as log_card:
     log_card.classes(grid_card_classes + " grid-cols-3 grid-rows-2")
-    with ui.scroll_area().classes(" w-full h-full "):
-        ui.label().bind_text_from(script_player, "output_text")  # convert list to string with newlines
+    ui.textarea(label="Log").bind_value_from(script_player, "output_text")
+
+    # with ui.scroll_area().classes(" w-full h-full "):
+    # ui.label().bind_text_from(script_player, "output_text")  # convert list to string with newlines
 
 
 # Footer --------------------------------------------------------------------------------
