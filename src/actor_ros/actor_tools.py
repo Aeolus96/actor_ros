@@ -309,7 +309,7 @@ class ScriptPlayer:
                 [f"python3 {self.active_directory}{self.selected_file}"],
                 shell=True,  # Needed to source ROS using .bashrc
                 stdout=subprocess.PIPE,  # Captures print() output # NOTE: ROS logging should be used to maintain logs
-                stderr=subprocess.PIPE,  # Captures Raised Errors and Exceptions
+                stderr=subprocess.STDOUT,  # Captures Raised Errors and Exceptions
                 universal_newlines=True,
                 text=True,
                 bufsize=1,
@@ -319,7 +319,6 @@ class ScriptPlayer:
             Thread(target=self.monitor_process, daemon=True).start()
             # Start a separate thread to read stdout and stderr streams
             Thread(target=self.read_output, args=(self.process.stdout,), daemon=True).start()
-            Thread(target=self.read_output, args=(self.process.stderr,), daemon=True).start()
 
             return "Script started running"
 
@@ -329,11 +328,11 @@ class ScriptPlayer:
             return f"---------------- Error in script ----------------\n{e}"
 
     def monitor_process(self):
-        """Monitor the process, read outputs and check return code"""
+        """Monitor the process and gets the return code"""
 
         self.process_return_code = self.process.wait()
         self.is_running = False
-        self.output_text.append(f"Script ended with return code: {self.process_return_code}")
+        self.output_text.append(f"Script returncode: {self.process_return_code}")
 
     def read_output(self, stream):
         """Read output stream and add lines into output_text
@@ -341,9 +340,10 @@ class ScriptPlayer:
 
         for line in iter(stream.readline, ""):
             print(line, end="")  # Display the line in the shell
+            line = line.rstrip("\n")  # Remove the newline character
             self.output_text.append(line)  # Store the line in the output_text list
 
-        # When EOF is reached (process is terminated), set the running flag to False
+        # When EOF is reached (process is terminated), set the running flag to False just in case
         self.is_running = False
 
     def stop_script(self, timeout=5.0):
