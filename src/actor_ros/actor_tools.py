@@ -308,8 +308,8 @@ class ScriptPlayer:
             self.process = subprocess.Popen(
                 [f"python3 {self.active_directory}{self.selected_file}"],
                 shell=True,  # Needed to source ROS using .bashrc
-                # stdout=subprocess.PIPE,  # Captures print() output # NOTE: ROS logging should be used to maintain logs
-                # stderr=subprocess.PIPE,  # Captures Raised Errors and Exceptions
+                stdout=subprocess.PIPE,  # Captures print() output # NOTE: ROS logging should be used to maintain logs
+                stderr=subprocess.PIPE,  # Captures Raised Errors and Exceptions
                 universal_newlines=True,
                 text=True,
                 bufsize=1,
@@ -317,6 +317,10 @@ class ScriptPlayer:
 
             # Start a separate thread to monitor the process
             Thread(target=self.monitor_process, daemon=True).start()
+            # Start a separate thread to read stdout and stderr streams
+            Thread(target=self.read_output, args=(self.process.stdout,), daemon=True).start()
+            Thread(target=self.read_output, args=(self.process.stderr,), daemon=True).start()
+
             return "Script started running"
 
         except Exception as e:
@@ -328,7 +332,19 @@ class ScriptPlayer:
         """Monitor the process, read outputs and check return code"""
 
         self.process_return_code = self.process.wait()
+        self.is_running = False
         self.output_text.append(f"Script ended with return code: {self.process_return_code}")
+
+    def read_output(self, stream):
+        """Read output stream and add lines into output_text
+        stream is direct input stream from stdout or stderr"""
+
+        for line in iter(stream.readline, ""):
+            print(line, end="")  # Display the line in the shell
+            self.output_text.append(line)  # Store the line in the output_text list
+
+        # When EOF is reached (process is terminated), set the running flag to False
+        self.is_running = False
 
     def stop_script(self, timeout=5.0):
         """Stop the currently running script"""
