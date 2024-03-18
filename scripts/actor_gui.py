@@ -2,7 +2,6 @@
 
 import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
 import rospkg  # ROS Package Utilities
-import time
 
 # from local_file_picker import local_file_picker  # local_file_picker (NiceGUI example)
 from nicegui import ui, run  # NiceGUI library
@@ -83,17 +82,6 @@ with ui.card() as script_card:
             ui.notify(script_player.execute())
             run_button.set_text("Stop")
 
-        time.sleep(2)
-        ui.notify(script_player.output_text)
-        time.sleep(2)
-        ui.notify(script_player.output_text)
-        time.sleep(2)
-        ui.notify(script_player.output_text)
-        time.sleep(2)
-        ui.notify(script_player.output_text)
-        time.sleep(2)
-        ui.notify(script_player.output_text)
-
     # Dropdown Menu -----
     file_select_dropdown = (
         ui.select(
@@ -120,8 +108,10 @@ with ui.card() as script_card:
 
 with ui.card() as log_card:
     log_card.classes(grid_card_classes + " grid-cols-3 grid-rows-2")
-    with ui.scroll_area().classes("h-full w-full"):
-        ui.label().bind_text_from(script_player, "output_text")
+    with ui.scroll_area():
+        ui.label().bind_text_from(
+            script_player, "output_text", backward=lambda list: "".join(line + "\n" for line in list)
+        )  # convert list to string with newlines
 
 
 # Footer --------------------------------------------------------------------------------
