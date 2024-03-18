@@ -312,7 +312,7 @@ class ScriptPlayer:
                 stderr=subprocess.STDOUT,  # Captures Raised Errors and Exceptions
                 universal_newlines=True,
                 text=True,
-                bufsize=1,
+                # bufsize=1,
             )
 
             # Start a separate thread to monitor the process
@@ -329,6 +329,7 @@ class ScriptPlayer:
 
     def monitor_process(self):
         """Monitor the process and gets the return code"""
+        print("Started monitoring process")
 
         self.process_return_code = self.process.wait()
         self.is_running = False
@@ -337,6 +338,7 @@ class ScriptPlayer:
     def read_output(self, stream):
         """Read output stream and add lines into output_text
         stream is direct input stream from stdout or stderr"""
+        print("Started reading output stream")
 
         # for line in iter(stream.readline, ""):
         for line in stream:
