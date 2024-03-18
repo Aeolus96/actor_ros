@@ -315,12 +315,8 @@ class ScriptPlayer:
                 bufsize=1,
             )
 
-            # Read output streams in separate threads and combine them into output_text
-            Thread(target=self.read_output, args=(self.process.stdout,), daemon=True).start()
-            Thread(target=self.read_output, args=(self.process.stderr,), daemon=True).start()
-
-            # Start a separate thread to monitor the process and check return code
-            # Thread(target=self.monitor_process, daemon=True).start()
+            # Start a separate thread to monitor the process
+            Thread(target=self.monitor_process, daemon=True).start()
             return "Script started running"
 
         except Exception as e:
@@ -329,38 +325,22 @@ class ScriptPlayer:
             return f"---------------- Error in script ----------------\n{e}"
 
     def monitor_process(self):
-        # Wait for the subprocess to finish and get the return code
-        self.process_return_code = self.process.wait()
-        return self.process_return_code
-
-    # def monitor_process(self):
-    #     # Wait for the subprocess to finish and get the return code
-    #     return_code = self.process.wait()
-
-    #     # Update the running flag
-    #     self.is_running = False
-
-    #     # Check the return code to determine if the script completed successfully
-    #     if return_code == 0:
-    #         self.process = None
-    #         return "Script finished running"
-
-    #     else:
-    #         self.process = None
-    #         return f"Script exited with non-zero return code: {return_code}"
-
-    def read_output(self, stream):
-        """Read output stream and add lines into output_text
-        stream is direct input stream from stdout or stderr"""
+        """Monitor the process, read outputs and check return code"""
 
         while True:
-            line = stream.readline()
-            self.output_text.append(line)
-            if line == "" and self.process.poll() is not None:
-                break
+            stdout, stderr = self.process.communicate()
 
-        # When EOF is reached (process is terminated), set the running flag to False
-        # self.is_running = False
+            if stdout:
+                self.output_text.append(stdout)
+
+            if stderr:
+                self.output_text.append(stderr)
+
+            if self.process.returncode is not None:
+                self.output_text.append(f"Process return code: {self.process.returncode}")
+
+            if self.process is None:  # Process has been successfully terminated
+                break
 
     def stop_script(self, timeout=5.0):
         """Stop the currently running script"""

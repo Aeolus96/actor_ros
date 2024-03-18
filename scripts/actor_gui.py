@@ -108,7 +108,7 @@ with ui.card() as script_card:
 
 with ui.card() as log_card:
     log_card.classes(grid_card_classes + " grid-cols-3 grid-rows-2")
-    with ui.scroll_area():
+    with ui.scroll_area().classes(" w-full h-full "):
         ui.label().bind_text_from(
             script_player, "output_text", backward=lambda list: "".join(line + "\n" for line in list)
         )  # convert list to string with newlines
