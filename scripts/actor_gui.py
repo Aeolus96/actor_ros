@@ -63,7 +63,7 @@ with ui.header().classes(replace="row items-center") as header:
 
 # Script Selection and Playback Card
 with ui.card() as script_card:
-    script_card.classes(grid_card_classes + " grid-cols-3 grid-rows-2")
+    script_card.classes(grid_card_classes + " grid-cols-4 grid-rows-2")
 
     async def select_file(filename: str) -> None:
         """Select a script file name and load it"""
@@ -71,13 +71,16 @@ with ui.card() as script_card:
         # script_player.selected_file = filename
         ui.notify(f"Script selected: {script_player.selected_file}")
 
-    async def execute_file(text: str) -> None:
+    async def handle_file() -> None:
         """Execute the selected file in a separate process"""
 
-        ui.notify(text)
-        ui.notify(script_player.execute())
-        play_button.set_text("Stop")
-        play_button.on("click", lambda: script_player.stop_script())
+        if script_player.is_running:  # stop the script
+            ui.notify(script_player.stop_script())
+            run_button.set_text("Start")
+
+        else:  # start the script
+            ui.notify(script_player.execute())
+            run_button.set_text("Stop")
 
     # Dropdown Menu -----
     file_select_dropdown = (
@@ -87,28 +90,25 @@ with ui.card() as script_card:
             clearable=True,
             on_change=lambda e: select_file(e.value),  # Event object with the selected value
         )
-        .classes("col-span-3 row-span-1")
+        .classes("col-span-4 row-span-1")
         .bind_value(script_player, "selected_file")
     )
 
     # Reload Button -----
     reload_button = (
         ui.button("Reload", on_click=lambda: ui.notify(script_player.load_files()))
-        .classes(button_classes + " col-span-1 row-span-1")
+        .classes(button_classes + " col-span-2 row-span-1")
         .props(button_props)
     )
 
-    # Play/Stop Button -----
-    play_button = (
-        ui.button("Play")
-        .classes(button_classes + " col-span-1 row-span-1")
-        .props(button_props)
-        .on("click", lambda e: execute_file(e.value))
+    # Start/Stop Button -----
+    run_button = (
+        ui.button("Start", on_click=handle_file).classes(button_classes + " col-span-2 row-span-1").props(button_props)
     )
 
 with ui.card() as log_card:
     log_card.classes(grid_card_classes + " grid-cols-3 grid-rows-2")
-    with ui.scroll_area().classes("col-span-3 row-span-2"):
+    with ui.scroll_area().classes("h-full w-full"):
         ui.label().bind_text_from(script_player, "output_text")
 
 
