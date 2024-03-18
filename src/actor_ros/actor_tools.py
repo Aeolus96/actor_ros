@@ -338,7 +338,8 @@ class ScriptPlayer:
         """Read output stream and add lines into output_text
         stream is direct input stream from stdout or stderr"""
 
-        for line in iter(stream.readline, ""):
+        # for line in iter(stream.readline, ""):
+        for line in stream:
             print(line, end="")  # Display the line in the shell
             line = line.rstrip("\n")  # Remove the newline character
             self.output_text.append(line)  # Store the line in the output_text list
