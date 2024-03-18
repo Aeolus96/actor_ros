@@ -337,16 +337,18 @@ class ScriptPlayer:
     def read_output(self, stream):
         """Read output stream and add lines into output_text
         stream is direct input stream from stdout or stderr"""
-        import io
+
+        while self.process.poll() is None:
+            line = stream.readline()
+            print(line, end="")  # Display the line in the shell
+            line = line.rstrip("\n")  # Remove the newline character
+            self.output_text.append(line)  # Store the line in the output_text list
 
         # for line in iter(stream.readline, ""):
         # for line in stream:
-        # Open the stdout stream for reading
-        with io.TextIOWrapper(stream, line_buffering=True) as stdout_stream:
-            for line in stdout_stream:
-                print(line, end="")  # Display the line in the shell
-                line = line.rstrip("\n")  # Remove the newline character
-                self.output_text.append(line)  # Store the line in the output_text list
+        # print(line, end="")  # Display the line in the shell
+        # line = line.rstrip("\n")  # Remove the newline character
+        # self.output_text.append(line)  # Store the line in the output_text list
 
         # When EOF is reached (process is terminated), set the running flag to False just in case
         self.is_running = False

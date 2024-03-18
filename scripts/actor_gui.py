@@ -108,11 +108,11 @@ with ui.card() as script_card:
     )
 
 with ui.card() as log_card:
-    log_card.classes(grid_card_classes + " grid-cols-3 h-96")
+    log_card.classes(grid_card_classes + " h-96")
     log_area = (
         ui.textarea(label="OUTPUT")
         .bind_value_from(script_player, "output_text", backward=lambda x: "\n".join(x))
-        .classes("col-span-3 h-full")
+        .classes("m-auto")
     )
 
     # with ui.scroll_area().classes(" w-full h-full "):
