@@ -301,7 +301,7 @@ class ScriptPlayer:
 
         # Set the running flag and Clear the output text to allow new output
         self.is_running = True
-        self.output_text = []
+        self.output_text = ["starting script...", "========"]
 
         try:
             # NOTE: "rosrun actor_ros <script_name>" can be used, this will likely impact how logging and stdout works
@@ -316,7 +316,7 @@ class ScriptPlayer:
             )
 
             # Start a separate thread to monitor the process
-            # Thread(target=self.monitor_process, daemon=True).start()
+            Thread(target=self.monitor_process, daemon=True).start()
             return "Script started running"
 
         except Exception as e:
@@ -327,20 +327,8 @@ class ScriptPlayer:
     def monitor_process(self):
         """Monitor the process, read outputs and check return code"""
 
-        while True:
-            stdout, stderr = self.process.communicate()
-
-            if stdout:
-                self.output_text.append(stdout)
-
-            if stderr:
-                self.output_text.append(stderr)
-
-            if self.process.returncode is not None:
-                self.output_text.append(f"Process return code: {self.process.returncode}")
-
-            if self.process is None:  # Process has been successfully terminated
-                break
+        self.process_return_code = self.process.wait()
+        self.output_text.append(f"Script ended with return code: {self.process_return_code}")
 
     def stop_script(self, timeout=5.0):
         """Stop the currently running script"""
