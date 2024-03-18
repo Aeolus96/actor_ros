@@ -2,6 +2,7 @@
 
 import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
 import rospkg  # ROS Package Utilities
+import time
 
 # from local_file_picker import local_file_picker  # local_file_picker (NiceGUI example)
 from nicegui import ui, run  # NiceGUI library
@@ -81,6 +82,17 @@ with ui.card() as script_card:
         else:  # start the script
             ui.notify(script_player.execute())
             run_button.set_text("Stop")
+
+        time.sleep(2)
+        ui.notify(script_player.output_text)
+        time.sleep(2)
+        ui.notify(script_player.output_text)
+        time.sleep(2)
+        ui.notify(script_player.output_text)
+        time.sleep(2)
+        ui.notify(script_player.output_text)
+        time.sleep(2)
+        ui.notify(script_player.output_text)
 
     # Dropdown Menu -----
     file_select_dropdown = (
