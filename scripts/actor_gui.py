@@ -61,7 +61,7 @@ with ui.header().classes(replace="row items-center") as header:
         ui.tab("B")
         ui.tab("C")
 
-with ui.column().classes(""):
+with ui.column().classes("w-full h-full"):
     # Script Selection and Playback Card
     with ui.card() as script_card:
         script_card.classes(grid_card_classes + " grid-cols-4 grid-rows-2")
@@ -114,7 +114,7 @@ with ui.column().classes(""):
         log_area = (
             ui.textarea()
             .bind_value_from(script_player, "output_text", backward=lambda x: "\n".join(x))
-            .classes("object-fill overflow-scroll webkit-scrollbar-track")
+            .classes("h-full overflow-scroll")
             .props("readonly dense")
         )
 

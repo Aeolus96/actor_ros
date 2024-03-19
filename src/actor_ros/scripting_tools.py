@@ -59,11 +59,15 @@ class ActorScriptTools:
             exec(f"from {subscriber.msg_file} import {subscriber.msg_type}")
             topic = str(subscriber.topic)
             msg = eval(subscriber.msg_type)
-            name = f"msg_{subscriber.topic.replace('/', '_')}"  # Replace slashes with underscores
-            setattr(self, name, msg)  # Initialize the instance attributes with default message objects
-            rospy.Subscriber(topic, msg, callback=lambda msg, name=name: setattr(self, name, msg), queue_size=1)
+            msg_instance = msg()
+            name = f"msg{subscriber.topic.replace('/', '_')}"  # Replace slashes with underscores
+            setattr(self, name, msg_instance)  # Initialize the instance attributes with default message objects
+            rospy.Subscriber(topic, msg, callback=self.any_callback, callback_args=name, queue_size=1)
 
         self.print_highlights("IGVC Tooling Initialized")
+        
+    def any_callback(self, msg, name):
+        setattr(self, name, msg)
 
     def print_highlights(self, text: str) -> None:
         """Prints text to stdout in a centered "highlight" style format"""

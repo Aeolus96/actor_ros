@@ -19,6 +19,6 @@ estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
 actor.drive_for(speed=1.0, angle=0.0, duration=5.0)
 
-actor.stop_vehicle(using_brakes=True, duration=5.0)
+actor.stop_vehicle(duration=5.0)
 
 actor.print_highlights("Testing - Go Forward Complete!")
