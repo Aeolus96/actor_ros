@@ -337,25 +337,14 @@ class ScriptPlayer:
     def read_output(self):
         """Read output stream and add lines into output_text
         stream is direct input stream from stdout or stderr"""
-        print("start reading...")
-        i = 0
         while self.process.poll() is None:
-            print(f"reading {i}...")
-            i += 1
             line = self.process.stdout.readline()
             print(line, end="")  # Display the line in the shell
             line = line.rstrip("\n")  # Remove the newline character
             self.output_text.append(line)  # Store the line in the output_text list
 
-        # for line in iter(stream.readline, ""):
-        # for line in stream:
-        # print(line, end="")  # Display the line in the shell
-        # line = line.rstrip("\n")  # Remove the newline character
-        # self.output_text.append(line)  # Store the line in the output_text list
-
         # When EOF is reached (process is terminated), set the running flag to False just in case
         self.is_running = False
-        print("End of stream")
 
     def stop_script(self, timeout=5.0):
         """Stop the currently running script"""
@@ -398,10 +387,10 @@ class YAMLReader:
         self.params = None
         with open(file_path, "r") as file:
             try:
+                print(f"Loading YAML file: {file_path}")
                 self.params = munchify(yaml.safe_load(file))
             except Exception as e:
                 print(f"Failed to load YAML file: {e}")
                 self.params = None
-                return None
 
     # End of class ------------------------

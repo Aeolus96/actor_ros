@@ -32,6 +32,7 @@ class ActorScriptTools:
 
     def __init__(self, cfg_file_name: str = None):
         """Initializes ROS node, makes publishers and subscribers"""
+
         import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
 
         # Initialize ROS Node -------------------------------------------------
@@ -41,21 +42,22 @@ class ActorScriptTools:
         # Import IGVC Parameters from YAML file -------------------------------
         self.package_directory = rospkg.RosPack().get_path("actor_ros")
         file_name = "igvc_params.yaml" if cfg_file_name is None else cfg_file_name
-        params = actor_tools.YAMLReader(file_path=self.package_directory + "/cfg/" + file_name)
+        file_path = self.package_directory + "/cfg/" + file_name
+        cfg_file = actor_tools.YAMLReader(file_path=file_path)
         rospy.sleep(1)  # Wait for parameters to be loaded
 
         # Make Publishers -----------------------------------------------------
-        for publisher in params.publishers:
+        for publisher in cfg_file.params.publishers:
             exec(f"from {publisher.msg_file} import {publisher.msg_type}")
-            topic = eval(publisher.topic)
+            topic = str(publisher.topic)
             msg = eval(publisher.msg_type)
             temp_publisher = rospy.Publisher(topic, msg, queue_size=1)
             setattr(self, publisher.name, temp_publisher)  # Initialize publishers as instance attributes
 
         # Make Subscribers ----------------------------------------------------
-        for subscriber in params.subscribers:
+        for subscriber in cfg_file.params.subscribers:
             exec(f"from {subscriber.msg_file} import {subscriber.msg_type}")
-            topic = eval(subscriber.topic)
+            topic = str(subscriber.topic)
             msg = eval(subscriber.msg_type)
             name = f"msg_{subscriber.topic.replace('/', '_')}"  # Replace slashes with underscores
             setattr(self, name, msg)  # Initialize the instance attributes with default message objects
@@ -140,8 +142,8 @@ class ActorScriptTools:
         return True
 
     def drive(self, speed=0.0, angle=0.0) -> None:
-        """Publishes a twist message to drive the vehicle.
-        It allows optional function-based speed and angle control.
+        """Publishes a twist message to drive the vehicle.\n
+        It allows optional function-based speed and angle control.\n
         Make sure the vehicle is stopped before requesting a direction change."""
         from geometry_msgs.msg import Twist  # ROS Messages
 
@@ -170,31 +172,19 @@ class ActorScriptTools:
         self,
         speed=0.0,
         angle=0.0,
-        speed_distance=None,
-        gps_distance=None,
-        duration=None,
-        func=None,
+        speed_distance: float = None,
+        gps_distance: float = None,
+        duration: float = None,
+        function=None,
     ) -> None:
-        """Publishes a twist message to drive the vehicle for a specified duration or distance.
-        Use only one conditional argument: speed_distance or gps_distance or duration or func.
-        For func-based arguments, make sure to pass a callable object. Lambda functions are only evaluated once."""
+        """Publishes a twist message to drive the vehicle for a specified duration or distance.\n
+        Use ONLY ONE conditional argument: speed_distance or gps_distance or duration or func.\n
+        Also supports functions as arguments, make sure to pass a callable object that returns a Bool every call.\n
+        Lambda functions are only evaluated once."""
 
         start_time = rospy.Time.now()
         distance_traveled = 0.0  # meters
         rate = rospy.Rate(20)  # Hz (dbw times out at 10Hz)
-
-        if callable(func):  # Use function-based end condition
-            while not rospy.is_shutdown() and not func():
-                self.drive(speed, angle)
-                rate.sleep()
-            return
-
-        if duration is not None:  # Use time-based end condition
-            self.print_highlights(f"Driving for {round(duration, 2)}seconds...")
-            while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
-                self.drive(speed, angle)
-                rate.sleep()
-            return
 
         if speed_distance is not None:  # Use speed-based distance calculations
             self.print_highlights(f"Driving for {round(speed_distance, 2)}meters...")
@@ -206,9 +196,26 @@ class ActorScriptTools:
                 self.drive(speed, angle)
                 rate.sleep()
 
-        if gps_distance is not None:
+            return
+
+        elif gps_distance is not None:
             # TODO: Implement GPS-based distance calculations
             pass
+
+        elif duration is not None:  # Use time-based end condition
+            self.print_highlights(f"Driving for {round(duration, 2)}seconds...")
+            while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
+                self.drive(speed, angle)
+                rate.sleep()
+
+            return
+
+        elif callable(function):  # Use function-based end condition
+            while not rospy.is_shutdown() and not function():
+                self.drive(speed, angle)
+                rate.sleep()
+
+            return
 
     def lane_center(self, lane=None) -> float:
         """Outputs the road angle needed to center in the lane.

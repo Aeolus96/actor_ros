@@ -4,7 +4,7 @@ import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
 import rospkg  # ROS Package Utilities
 
 # from local_file_picker import local_file_picker  # local_file_picker (NiceGUI example)
-from nicegui import ui, run  # NiceGUI library
+from nicegui import ui  # NiceGUI library
 
 # ROS I/O -------------------------------------------------------------------------------------------------------------
 # NOTE: using a rospy node should be avoided in this python script.
@@ -45,7 +45,7 @@ footer_card_classes = (
     " shadow-none rounded-none w-full h-24 gap-0 p-0 mx-auto " + text_color_classes + background_color_classes
 )
 footer_label_classes = " select-none font-bold mx-auto text-xs " + text_color_classes
-grid_card_classes = " shadow-none w-80 m-auto gap-2 p-2 border-4 grid " + text_color_classes
+grid_card_classes = " shadow-none m-auto gap-2 p-2 border-4 grid " + text_color_classes
 button_classes = " w-full h-full m-auto text-bold " + text_color_classes
 button_props = " stack push no-caps " + text_color_props + button_color_props
 
@@ -61,62 +61,62 @@ with ui.header().classes(replace="row items-center") as header:
         ui.tab("B")
         ui.tab("C")
 
-# Script Selection and Playback Card
-with ui.card() as script_card:
-    script_card.classes(grid_card_classes + " grid-cols-4 grid-rows-2")
+with ui.column().classes(""):
+    # Script Selection and Playback Card
+    with ui.card() as script_card:
+        script_card.classes(grid_card_classes + " grid-cols-4 grid-rows-2")
 
-    async def select_file(filename: str) -> None:
-        """Select a script file name and load it"""
+        async def select_file(filename: str) -> None:
+            """Select a script file name and load it"""
 
-        # script_player.selected_file = filename
-        ui.notify(f"Script selected: {script_player.selected_file}")
+            # script_player.selected_file = filename
+            ui.notify(f"Script selected: {script_player.selected_file}")
+            log_area.props(f" label='OUTPUT: {script_player.selected_file}' ")
 
-    async def handle_file() -> None:
-        """Execute the selected file in a separate process"""
+        async def handle_file() -> None:
+            """Execute the selected file in a separate process"""
 
-        if script_player.is_running:  # stop the script
-            ui.notify(script_player.stop_script())
+            if script_player.is_running:  # stop the script
+                ui.notify(script_player.stop_script())
 
-        else:  # start the script
-            ui.notify(script_player.execute())
+            else:  # start the script
+                ui.notify(script_player.execute())
 
-    # Dropdown Menu -----
-    file_select_dropdown = (
-        ui.select(
-            options=script_player.file_list,
-            with_input=True,
-            clearable=True,
-            on_change=lambda e: select_file(e.value),  # Event object with the selected value
+        # Dropdown Menu -----
+        file_select_dropdown = (
+            ui.select(
+                options=script_player.file_list,
+                with_input=True,
+                clearable=True,
+                on_change=lambda e: select_file(e.value),  # Event object with the selected value
+            )
+            .classes("col-span-4 row-span-1")
+            .bind_value(script_player, "selected_file")
         )
-        .classes("col-span-4 row-span-1")
-        .bind_value(script_player, "selected_file")
-    )
 
-    # Reload Button -----
-    reload_button = (
-        ui.button("Reload", on_click=lambda: ui.notify(script_player.load_files()))
-        .classes(button_classes + " col-span-2 row-span-1")
-        .props(button_props)
-    )
+        # Reload Button -----
+        reload_button = (
+            ui.button("Reload", on_click=lambda: ui.notify(script_player.load_files()))
+            .classes(button_classes + " col-span-2 row-span-1")
+            .props(button_props)
+        )
 
-    # Start/Stop Button -----
-    run_button = (
-        ui.button("Start", on_click=handle_file)
-        .classes(button_classes + " col-span-2 row-span-1")
-        .props(button_props)
-        .bind_text_from(script_player, "is_running", lambda running: "Stop" if running else "Start")
-    )
+        # Start/Stop Button -----
+        run_button = (
+            ui.button("Start", on_click=handle_file)
+            .classes(button_classes + " col-span-2 row-span-1")
+            .props(button_props)
+            .bind_text_from(script_player, "is_running", lambda running: "Stop" if running else "Start")
+        )
 
-with ui.card() as log_card:
-    log_card.classes(grid_card_classes + " h-96")
-    log_area = (
-        ui.textarea(label="OUTPUT")
-        .bind_value_from(script_player, "output_text", backward=lambda x: "\n".join(x))
-        .classes("w-full h-80")
-    )
-
-    # with ui.scroll_area().classes(" w-full h-full "):
-    # ui.label().bind_text_from(script_player, "output_text")  # convert list to string with newlines
+    with ui.card() as log_card:
+        log_card.classes(grid_card_classes + " w-full h-96")
+        log_area = (
+            ui.textarea()
+            .bind_value_from(script_player, "output_text", backward=lambda x: "\n".join(x))
+            .classes("object-fill overflow-scroll webkit-scrollbar-track")
+            .props("readonly dense")
+        )
 
 
 # Footer --------------------------------------------------------------------------------
