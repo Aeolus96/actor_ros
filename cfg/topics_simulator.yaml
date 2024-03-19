@@ -1,6 +1,8 @@
 # All simulator related topics go here
 
 # Actuators this node publishes to (simulator)
+sim_input: /cmd_vel
+
 accelerator: /simulator/throttle_cmd
 brakes: /simulator/brake_cmd
 steering: /simulator/steering_cmd
@@ -21,3 +23,12 @@ drive: /actor/cmd_vel
 
 # Status messages this node publishes - usually no changes needed here
 status: /actor/status
+
+# E-Stop related topics go here
+estop_state: /actor/estop/state
+estop_heartbeat: /actor/estop/heartbeat_edge
+estop_physical_button: /actor/estop/physical_button
+estop_wireless_button: /actor/estop/wireless_button
+estop_software_button: /actor/estop/software_button
+estop_trigger: /actor/estop/trigger
+estop_reset: /actor/estop/reset

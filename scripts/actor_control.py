@@ -74,18 +74,21 @@ def publish_vehicle_controls(TimerEvent) -> None:
     # NOTE: If needed, enable everytime. Usually not needed to prevent re-enabling after an error or override
     # enable_dbw()
 
-    # Speed -------------------------------------------------------------------
-    requested_speed = speed_limiter(msg_twist_buffer.linear.x)
+    if sim is not None:  # Simply pass along the twist message
+        pub_twist.publish(msg_twist_buffer)
+    else:
+        # Speed -------------------------------------------------------------------
+        requested_speed = speed_limiter(msg_twist_buffer.linear.x)
 
-    # Using ULC speed control
-    publish_ulc_speed(requested_speed)
+        # Using ULC speed control
+        publish_ulc_speed(requested_speed)
 
-    # Steering ----------------------------------------------------------------
-    # Using native steering control
-    if config_.twist_uses_road_angle:
-        publish_steering(requested_road_angle=msg_twist_buffer.angular.z)
-    else:  # Use steering wheel angle
-        publish_steering(requested_steering_angle=msg_twist_buffer.angular.z)
+        # Steering ----------------------------------------------------------------
+        # Using native steering control
+        if config_.twist_uses_road_angle:
+            publish_steering(requested_road_angle=msg_twist_buffer.angular.z)
+        else:  # Use steering wheel angle
+            publish_steering(requested_steering_angle=msg_twist_buffer.angular.z)
 
 
 # End of Callbacks ------------------------------------------------------------
@@ -221,9 +224,13 @@ rospy.Timer(rospy.Duration(1 / config_.control_rate_hz), publish_vehicle_control
 actor = actor_tools.ActorStatusReader()
 
 # Define publishers
-pub_steering = rospy.Publisher(rospy.get_param("steering"), SteeringCmd, queue_size=1)
-pub_enable_cmd = rospy.Publisher(rospy.get_param("enable"), Empty, queue_size=1)
-pub_ulc = rospy.Publisher(rospy.get_param("ulc"), UlcCmd, queue_size=1)
+sim = rospy.get_param("sim_input", None)
+if sim is not None:
+    pub_twist = rospy.Publisher(sim, Twist, queue_size=1)
+else:
+    pub_steering = rospy.Publisher(rospy.get_param("steering"), SteeringCmd, queue_size=1)
+    pub_enable_cmd = rospy.Publisher(rospy.get_param("enable"), Empty, queue_size=1)
+    pub_ulc = rospy.Publisher(rospy.get_param("ulc"), UlcCmd, queue_size=1)
 
 rospy.loginfo("actor_control node running.")
 
