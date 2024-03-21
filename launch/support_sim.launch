@@ -1,0 +1,5 @@
+<launch>
+    <!-- IGVC Simulation Environment .......................................-->
+    <include file="$(find simple_sim_igvc)/launch/auto_run_sim.launch" />
+    <!-- TODO: Add test code argument passing from actor.launch -->
+</launch>

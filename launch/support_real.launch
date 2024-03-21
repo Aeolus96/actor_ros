@@ -1,0 +1,33 @@
+<launch>
+
+    <!-- DataSpeed DBW .....................................................-->
+    <include file="$(find dbw_polaris_can)/launch/dbw.launch" />
+
+    <!-- Mako G319C Global Shutter Camera ..................................-->
+    <include file="$(find avt_vimba_camera)/launch/mono_camera.launch">
+        <!-- ACTor 1 Mako Camera IP -->
+        <arg name="ip" value="192.168.0.40" />
+        <!-- ACTor 2 Mako Camera IP -->
+        <arg name="ip" value="192.168.60.40" />
+    </include>
+
+    <!-- Velodyne VLP-16 3D LiDAR ..........................................-->
+    <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch" />
+
+    <!-- Route-YoloV8 ......................................................-->
+    <include file="$(find ltu_actor_route_yolov8_detector)/launch/yolov8_detector.launch">
+        <!-- Input Image Topic -->
+        <param name="imgtopic_name" type="string" value="/camera/image_raw" />
+        <!-- Ultralytics YoloV8 Model Paths -->
+        <!-- TODO: Correct this inside this package -->
+        <param name="model_coco_path_from_root" type="string"
+            value="$(find ltu_actor_route_yolov8_detector)/models/yolov8m.pt" />
+        <param name="model_stop_path_from_root" type="string"
+            value="$(find ltu_actor_route_yolov8_detector)/models/m_best.pt" />
+        <param name="model_tire_path_from_root" type="string"
+            value="$(find ltu_actor_route_yolov8_detector)/models/tire.pt" />
+    </include>
+
+    <!-- TODO: Add other packages here -->
+
+</launch>

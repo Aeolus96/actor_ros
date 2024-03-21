@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import time  # Time library
+
 import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
 import rospkg  # ROS Package Utilities
 
@@ -9,15 +11,16 @@ from nicegui import ui  # NiceGUI library
 # ROS I/O -------------------------------------------------------------------------------------------------------------
 # NOTE: using a rospy node should be avoided in this python script.
 # Since NiceGUI and ROS both requrie the main thread to run, this is a bad idea and will cause event handling errors
-
+time.sleep(4)  # Wait for 4 seconds for status node to start
 # Read ACTor Status - Subscribe to ACTor Status Messages and constantly update using dictdatabase
 # NOTE: Choose EITHER redis or simulated values for testing purposes
+# TODO: Maybe use subprocess to run a CLI param check to see if sim=True
 # Redis -----------------------------------------
-# actor = actor_tools.ActorStatusReader(read_from_redis=True)
-# ui.timer(interval=(1 / 60), callback=lambda: actor())  # Update status from database with a timer
+# status = actor_tools.ActorStatusReader(simulate_for_testing=True)
+# ui.timer(interval=(1 / 60), callback=lambda: status())  # Update status from database with a timer
 # Simulated Values ------------------------------
 status = actor_tools.ActorStatusReader(simulate_for_testing=True)
-ui.timer(interval=(1), callback=lambda: status())  # Update status from database with a timer
+ui.timer(interval=(1), callback=lambda: status())  # Update status from simulated values
 
 # E-STOP ----------------------------------------
 e_stop = actor_tools.EStopManager()

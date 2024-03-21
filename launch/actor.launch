@@ -10,6 +10,7 @@
         <group if="$(arg simulated)">
             <!-- Load the Simulation/Carla related YAML file -->
             <group if="$(arg carla)">
+                <!-- TODO: Add support for CARLA -->
                 <rosparam command="load" file="$(find actor_ros)/cfg/topics_carla.yaml" />
             </group>
             <group unless="$(arg carla)">
@@ -33,10 +34,31 @@
         <node name="actor_control" pkg="actor_ros" type="actor_control.py" respawn="true" />
 
         <!-- Actor GUI -->
-        <node name="actor_gui" pkg="actor_ros" type="actor_gui.py" respawn="true" output="screen" />
-
+        <node name="actor_gui" pkg="actor_ros" type="actor_gui.py" respawn="true" output="screen"
+            launch-prefix="gnome-terminal --geometry=120x40+0+0" />
 
         <!-- .................................................................................. -->
     </group>
+    <!-- ^^ End of /actor namespace ^^ -->
+
+    <!-- Adding external ROS packages ...-->
+
+    <group if="$(arg simulated)">
+        <!-- Load the Simulation/Carla related launch file -->
+        <group if="$(arg carla)">
+            <!-- TODO: Add support for CARLA -->
+            <include>$(find actor_ros)/launch/support_carla.launch</include>
+        </group>
+        <group unless="$(arg carla)">
+            <include>$(find actor_ros)/launch/support_sim.launch</include>
+        </group>
+    </group>
+    <group unless="$(arg simulated)">
+        <!-- Load the Real vehicle related launch file -->
+        <include>$(find actor_ros)/launch/support_real.launch</include>
+    </group>
+
+    <!-- rqt_reconfigure aka Dynamic Reconfigure GUI -->
+    <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_console" args="-t"/>
 
 </launch>
