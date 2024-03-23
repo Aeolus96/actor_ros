@@ -47,15 +47,15 @@
         <!-- Load the Simulation/Carla related launch file -->
         <group if="$(arg carla)">
             <!-- TODO: Add support for CARLA -->
-            <include>$(find actor_ros)/launch/support_carla.launch</include>
+            <include file="$(find actor_ros)/launch/support_carla.launch" />
         </group>
         <group unless="$(arg carla)">
-            <include>$(find actor_ros)/launch/support_sim.launch</include>
+            <include file="$(find actor_ros)/launch/support_sim.launch" />
         </group>
     </group>
     <group unless="$(arg simulated)">
         <!-- Load the Real vehicle related launch file -->
-        <include>$(find actor_ros)/launch/support_real.launch</include>
+        <include file="$(find actor_ros)/launch/support_real.launch" />
     </group>
 
     <!-- rqt_reconfigure aka Dynamic Reconfigure GUI -->
