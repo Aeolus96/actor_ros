@@ -233,6 +233,17 @@ class ActorScriptTools:
             pass
 
         return self.msg_lane_center.data  # raw output from /lane_center topic
+    
+    def lidar_detect(self, lidar_zone=0, min_distance=0.0, max_distance: float = None) -> bool:
+        """Uses the LiDAR zones to detect an object near the vehicle.\n
+        Returns True if an object is detected in specified zone within min_distance and max_distance.\n
+        Zone 0: Front of Vehicle\n
+        Zone 1: Right of Vehicle\n
+        Zone 2: Left of Vehicle"""
+
+        return eval(f"{min_distance} < actor.msg_lidar_zone_{lidar_zone}_closest.data < {max_distance}")
+
+    
 
     # TODO: Add methods from igvc_python but make them more Pythonic a.k.a intuitive and easy to use
 
