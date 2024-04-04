@@ -89,6 +89,11 @@ with ui.column().classes("w-full h-full"):
 
             if script_player.is_running:  # stop the script
                 ui.notify(script_player.stop_script())
+                print()
+                print("**********************")
+                print("*** SCRIPT STOPPED ***")
+                print("**********************")
+                print()
 
             else:  # start the script
                 ui.notify(script_player.execute())
