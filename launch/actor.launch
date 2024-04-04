@@ -3,7 +3,25 @@
     <arg name="simulated" default="false" />
     <arg name="carla" default="false" />
 
-    <!-- Launch groups under the global namespace '/actor' -->
+
+    <!-- Adding external ROS packages using separate launch files. Makes it easy to update .... -->
+    <group if="$(arg simulated)">
+        <!-- Load the Simulation/Carla related launch file -->
+        <group if="$(arg carla)">
+            <!-- TODO: Add support for CARLA -->
+            <include file="$(find actor_ros)/launch/support_carla.launch" />
+        </group>
+        <group unless="$(arg carla)">
+            <include file="$(find actor_ros)/launch/support_sim.launch" />
+        </group>
+    </group>
+    <group unless="$(arg simulated)">
+        <!-- Load the Real vehicle related launch file -->
+        <include file="$(find actor_ros)/launch/support_real.launch" />
+    </group>
+
+
+    <!-- Launch groups under the global namespace '/actor' .................................... -->
     <group ns="/actor">
 
         <!-- Load Environment related variables -->
@@ -21,7 +39,7 @@
             <!-- Load the Real vehicle related YAML file -->
             <rosparam command="load" file="$(find actor_ros)/cfg/topics_real.yaml" />
         </group>
-        <!-- .................................................................................. -->
+        <!-- ................................ -->
 
         <!-- Parameter used to determine simulation mode from other nodes -->
         <param name="is_simulated" value="$(arg simulated)" />
@@ -34,30 +52,11 @@
         <node name="actor_control" pkg="actor_ros" type="actor_control.py" respawn="true" />
 
         <!-- Actor GUI -->
-        <node name="actor_gui" pkg="actor_ros" type="actor_gui.py" respawn="true" output="screen" />
+        <node name="actor_gui" pkg="actor_ros" type="actor_gui.py" args="$(arg simulated)"
+            respawn="true" output="screen" />
 
         <!-- .................................................................................. -->
     </group>
-    <!-- ^^ End of /actor namespace ^^ -->
-
-    <!-- Adding external ROS packages ...-->
-
-    <group if="$(arg simulated)">
-        <!-- Load the Simulation/Carla related launch file -->
-        <group if="$(arg carla)">
-            <!-- TODO: Add support for CARLA -->
-            <include file="$(find actor_ros)/launch/support_carla.launch" />
-        </group>
-        <group unless="$(arg carla)">
-            <include file="$(find actor_ros)/launch/support_sim.launch" />
-        </group>
-    </group>
-    <group unless="$(arg simulated)">
-        <!-- Load the Real vehicle related launch file -->
-        <include file="$(find actor_ros)/launch/support_real.launch" />
-    </group>
-
-    <!-- rqt_reconfigure aka Dynamic Reconfigure GUI -->
-    <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_console" args="-t"/>
+    <!-- ^^ End of /actor namespace ^^ ........................................................ -->
 
 </launch>

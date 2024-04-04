@@ -1,29 +1,32 @@
 #!/usr/bin/env python3
 
 import time  # Time library
+import sys
 
 import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
 import rospkg  # ROS Package Utilities
-
-# from local_file_picker import local_file_picker  # local_file_picker (NiceGUI example)
 from nicegui import ui  # NiceGUI library
 
 # ROS I/O -------------------------------------------------------------------------------------------------------------
 # NOTE: using a rospy node should be avoided in this python script.
 # Since NiceGUI and ROS both requrie the main thread to run, this is a bad idea and will cause event handling errors
+
 time.sleep(4)  # Wait for 4 seconds for status node to start
+
 # Read ACTor Status - Subscribe to ACTor Status Messages and constantly update using dictdatabase
-# NOTE: Choose EITHER redis or simulated values for testing purposes
-# TODO: Maybe use subprocess to run a CLI param check to see if sim=True
+# NOTE: Choose redis OR use simulated values for testing purposes
+print("*************************")
+print(sys.argv)
+print("*************************")
 # Redis -----------------------------------------
-# status = actor_tools.ActorStatusReader(simulate_for_testing=True)
-# ui.timer(interval=(1 / 60), callback=lambda: status())  # Update status from database with a timer
+status = actor_tools.ActorStatusReader(read_from_redis=True, simulate_for_testing=True)
+ui.timer(interval=(1 / 60), callback=lambda: status())  # Update status from database with a timer
 # Simulated Values ------------------------------
-status = actor_tools.ActorStatusReader(simulate_for_testing=True)
-ui.timer(interval=(1), callback=lambda: status())  # Update status from simulated values
+# status = actor_tools.ActorStatusReader(simulate_for_testing=True)
+# ui.timer(interval=(1), callback=lambda: status())  # Update status from simulated values
 
 # E-STOP ----------------------------------------
-e_stop = actor_tools.EStopManager()
+estop = actor_tools.EStopManager()
 
 # Script Player ---------------------------------
 # Using rospkg to get the full path to the directory containing the scripts
@@ -69,6 +72,11 @@ with ui.column().classes("w-full h-full"):
     with ui.card() as script_card:
         script_card.classes(grid_card_classes + " grid-cols-4 grid-rows-2")
 
+        async def update_list():
+            """Update the dropdown list of script files"""
+            ui.notify(script_player.load_files())
+            file_select_dropdown.options = script_player.file_list
+
         async def select_file(filename: str) -> None:
             """Select a script file name and load it"""
 
@@ -99,7 +107,7 @@ with ui.column().classes("w-full h-full"):
 
         # Reload Button -----
         reload_button = (
-            ui.button("Reload", on_click=lambda: ui.notify(script_player.load_files()))
+            ui.button("Reload", on_click=update_list)
             .classes(button_classes + " col-span-2 row-span-1")
             .props(button_props)
         )
@@ -203,29 +211,29 @@ with ui.footer(value=True) as footer:
 # NOTE: needs to be the last element to display on top of all other content
 with ui.page_sticky(position="bottom", x_offset=20, y_offset=20):
     # UI functions only - ROS stuff handled separately
-    async def activate_e_stop():
-        e_stop()  # Using EStopManager
+    async def activate_estop():
+        estop()  # Using EStopManager
 
         ui.notify("E-STOP ACTIVATED", type="warning", position="center")
 
-        e_stop_button.props("color=dark text-color=positive")
-        e_stop_spinner.props("color=positive")
+        estop_button.props("color=dark text-color=positive")
+        estop_spinner.props("color=positive")
 
-    async def reset_e_stop():
-        e_stop.reset()  # Using EStopManager
+    async def reset_estop():
+        estop.reset()  # Using EStopManager
 
         ui.notify("E-STOP RESET", type="positive", position="center")
 
-        e_stop_button.props("color=warning text-color=negative")
-        e_stop_spinner.props("color=negative")
+        estop_button.props("color=warning text-color=negative")
+        estop_spinner.props("color=negative")
 
     # E-Stop button -----
-    with ui.button(on_click=lambda: activate_e_stop() if not status.estop_state else reset_e_stop()) as e_stop_button:
-        e_stop_button.props(button_props + " color=warning text-color=negative")
-        e_stop_button.classes("w-20 h-20 m-auto text-bold text-center")
-        e_stop_button.bind_text_from(status, "estop_state", backward=lambda state: "RESET" if state else "STOP")
+    with ui.button(on_click=lambda: activate_estop() if not status.estop_state else reset_estop()) as estop_button:
+        estop_button.props(button_props + " color=warning text-color=negative")
+        estop_button.classes("w-20 h-20 m-auto text-bold text-center")
+        estop_button.bind_text_from(status, "estop_state", backward=lambda state: "RESET" if state else "STOP")
 
-        e_stop_spinner = (
+        estop_spinner = (
             ui.spinner("puff", size="20px")
             .props("color=negative")
             .classes("m-auto")
@@ -235,5 +243,4 @@ with ui.page_sticky(position="bottom", x_offset=20, y_offset=20):
 
 # Run GUI -------------------------------------------------------------------------------------------------------------
 # NOTE: Needs to be the last element to run the GUI.
-# NOTE: If there are any changes made to this script while it is running, it will restart automatically
-ui.run(dark=True, reload=True, show=False)
+ui.run(dark=True, show=False)

@@ -206,35 +206,35 @@ class EStopManager:
     """Manager for E-Stop functionality. E-Stop can be triggered from anywhere.
     Also provides a way to reset a software E-Stop, enable and disable the Drive-By-Wire System."""
 
-    # actor/e_stop/state - Bool
-    # actor/e_stop/physical_button - Bool
-    # actor/e_stop/wireless_button - Bool
-    # actor/e_stop/trigger - Empty
-    # actor/e_stop/reset - Empty
-    # actor/e_stop/heartbeat_edge - Header
-    # actor/e_stop/heartbeat_core - Header
+    # actor/estop/state - Bool
+    # actor/estop/physical_button - Bool
+    # actor/estop/wireless_button - Bool
+    # actor/estop/trigger - Empty
+    # actor/estop/reset - Empty
+    # actor/estop/heartbeat_edge - Header
+    # actor/estop/heartbeat_core - Header
 
     def __init__(self):
         """Initialize the E-Stop Manager for any script"""
-        self.e_stop_topic = "/actor/e_stop/trigger"
-        self.e_stop_reset_topic = "/actor/e_stop/reset"
+        self.estop_topic = "/actor/estop/trigger"
+        self.estop_reset_topic = "/actor/estop/reset"
         self.enable_topic = "/vehicle/enable"
         self.disable_topic = "/vehicle/disable"
 
     def __call__(self) -> bool:
         """Call method to trigger E-Stop using the instance of E-Stop Manager"""
-        return self.trigger_e_stop()
+        return self.trigger_estop()
 
-    def trigger_e_stop(self) -> bool:
+    def trigger_estop(self) -> bool:
         """Trigger E-Stop by publishing an empty message to the E-Stop topic using rostopic pub command"""
 
-        return self._send_command(f'rostopic pub --once {self.e_stop_topic} std_msgs/Empty "{{}}" >/dev/null 2>&1 &')
+        return self._send_command(f'rostopic pub --once {self.estop_topic} std_msgs/Empty "{{}}" >/dev/null 2>&1 &')
 
     def reset(self) -> bool:
         """Resets E-Stop by publishing an empty message to the E-Stop reset topic using rostopic pub command"""
 
         return self._send_command(
-            f'rostopic pub --once {self.e_stop_reset_topic} std_msgs/Empty "{{}}" >/dev/null 2>&1 &'
+            f'rostopic pub --once {self.estop_reset_topic} std_msgs/Empty "{{}}" >/dev/null 2>&1 &'
         )
 
     def enable_dbw(self) -> bool:
