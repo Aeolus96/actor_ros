@@ -211,9 +211,9 @@ def publish_status(TimerEvent):
     status.accelerator_percent = round(accelerator_percent, 3)
     status.brake_percent = round(brake_percent, 3)
     status.steering_wheel_angle = round(steering_wheel_angle, 3)
-    status.road_angle = round(road_angle, 3)
+    status.road_angle = round(road_angle, 3) if not is_simulated else round(requested_road_angle, 3)  # Temp fix
     status.gear = gear
-    status.speed = round(speed, 2)
+    status.speed = round(speed, 2) if not is_simulated else round(requested_speed, 3)  # Temp fix for simulation mode
 
     # ROS Control
     status.is_enabled = enabled

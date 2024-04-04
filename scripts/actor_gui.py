@@ -13,17 +13,17 @@ from nicegui import ui  # NiceGUI library
 
 time.sleep(4)  # Wait for 4 seconds for status node to start
 
-# Read ACTor Status - Subscribe to ACTor Status Messages and constantly update using dictdatabase
-# NOTE: Choose redis OR use simulated values for testing purposes
-print("*************************")
-print(sys.argv)
-print("*************************")
-# Redis -----------------------------------------
-status = actor_tools.ActorStatusReader(read_from_redis=True, simulate_for_testing=True)
-ui.timer(interval=(1 / 60), callback=lambda: status())  # Update status from database with a timer
-# Simulated Values ------------------------------
-# status = actor_tools.ActorStatusReader(simulate_for_testing=True)
-# ui.timer(interval=(1), callback=lambda: status())  # Update status from simulated values
+# Read ACTor Status - Subscribe to ACTor Status Messages and constantly update using Redis key value store
+if sys.argv[1].lower() == "true":  # Simulated Values ------------------------------
+    print("Setting up GUI for simulation...")
+    # NOTE: For now, only speed and road angle are updated using twist input
+    status = actor_tools.ActorStatusReader(simulate_for_testing=True)
+    ui.timer(interval=(1), callback=lambda: status())  # Update status from simulated values
+else:  # Use Redis to get ACTor Status msgs -----------------------------------------
+    print("Setting up GUI for Real Vehicle...")
+    status = actor_tools.ActorStatusReader(read_from_redis=True)
+    ui.timer(interval=(1 / 60), callback=lambda: status())  # Update status from database with a timer
+
 
 # E-STOP ----------------------------------------
 estop = actor_tools.EStopManager()

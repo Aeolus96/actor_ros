@@ -346,11 +346,13 @@ class ScriptPlayer:
         # When EOF is reached (process is terminated), set the running flag to False just in case
         self.is_running = False
 
-    def stop_script(self, timeout=5.0):
+    def stop_script(self, timeout=0.5):
         """Stop the currently running script"""
+        import os  # have to use os.killpg because subprocess spawns a shell with script as its child process
+        import signal
 
         if self.process and self.is_running:
-            self.process.terminate()  # SIGTERM
+            os.killpg(self.process.pid, signal.SIGTERM)  # SIGTERM shell and its child processes
             self.process.wait(timeout=timeout)
 
             if self.process is None:  # Process has been successfully terminated
@@ -358,7 +360,7 @@ class ScriptPlayer:
                 return "Script stopped"
 
             if self.process.poll() is None:  # If process is still running
-                self.process.terminate()  # Forcefully kill the process - SIGKILL
+                os.killpg(self.process.pid, signal.SIGKILL)  # SIGKILL shell and its child processes
                 self.process.wait()
                 self.is_running = False
                 self.process = None

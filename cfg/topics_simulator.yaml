@@ -1,7 +1,7 @@
 # All simulator related topics go here
 
 # Actuators this node publishes to (simulator)
-sim_input: /cmd_vel
+sim_input: /simulator/cmd_vel
 
 accelerator: /simulator/throttle_cmd
 brakes: /simulator/brake_cmd

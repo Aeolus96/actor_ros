@@ -54,6 +54,7 @@
         <!-- Actor GUI -->
         <node name="actor_gui" pkg="actor_ros" type="actor_gui.py" args="$(arg simulated)"
             respawn="true" output="screen" />
+        <!-- Added simulated arg because gui does not run a ROS node to read ros params -->
 
         <!-- .................................................................................. -->
     </group>
