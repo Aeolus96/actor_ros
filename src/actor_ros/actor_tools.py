@@ -291,6 +291,7 @@ class ScriptPlayer:
     def execute(self):
         """Execute the selected file in a separate process"""
         import subprocess
+        import os
         from threading import Thread
 
         if self.is_running:
@@ -308,6 +309,7 @@ class ScriptPlayer:
             self.process = subprocess.Popen(
                 [f"python3 -u {self.active_directory}{self.selected_file}"],
                 shell=True,  # Needed to source ROS using .bashrc
+                preexec_fn=os.setsid,  # Set process id of the new process group
                 stdout=subprocess.PIPE,  # Captures print() output # NOTE: ROS logging should be used to maintain logs
                 stderr=subprocess.STDOUT,  # Captures Raised Errors and Exceptions
                 universal_newlines=True,
@@ -330,46 +332,61 @@ class ScriptPlayer:
     def monitor_process(self):
         """Monitor the process and gets the return code"""
 
-        self.process_return_code = self.process.wait()
-        self.is_running = False
-        self.output_text.append(f"Script returncode: {self.process_return_code}")
+        try:
+            self.process_return_code = self.process.wait()
+            self.is_running = False
+            self.output_text.append(f"Script returncode: {self.process_return_code}")
+        except Exception as e:
+            print(f"---------------- Exception in monitor_process ----------------\n{e}")
+            self.is_running = False
 
     def read_output(self):
         """Read output stream and add lines into output_text
         stream is direct input stream from stdout or stderr"""
-        while self.process.poll() is None:
-            line = self.process.stdout.readline()
-            print(line, end="")  # Display the line in the shell
-            line = line.rstrip("\n")  # Remove the newline character
-            self.output_text.append(line)  # Store the line in the output_text list
 
-        # When EOF is reached (process is terminated), set the running flag to False just in case
-        self.is_running = False
+        try:
+            while self.process.poll() is None:
+                line = self.process.stdout.readline()
+                print(line, end="")  # Display the line in the shell
+                line = line.rstrip("\n")  # Remove the newline character
+                self.output_text.append(line)  # Store the line in the output_text list
+
+            # When EOF is reached (process is terminated), set the running flag to False just in case
+            self.is_running = False
+        except Exception as e:
+            print(f"---------------- Exception in read_output ----------------\n{e}")
+            self.is_running = False
 
     def stop_script(self, timeout=0.5):
         """Stop the currently running script"""
         import os  # have to use os.killpg because subprocess spawns a shell with script as its child process
         import signal
+        import time
 
         if self.process and self.is_running:
-            os.killpg(self.process.pid, signal.SIGTERM)  # SIGTERM shell and its child processes
-            self.process.wait(timeout=timeout)
+            os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)  # SIGTERM shell and its child processes
+            time.sleep(timeout)
 
             if self.process is None:  # Process has been successfully terminated
                 self.is_running = False
                 return "Script stopped"
 
-            if self.process.poll() is None:  # If process is still running
-                os.killpg(self.process.pid, signal.SIGKILL)  # SIGKILL shell and its child processes
-                self.process.wait()
-                self.is_running = False
-                self.process = None
-                return "Script stopped"
+            try:
+                if self.process.poll() is None:  # If process is still running
+                    os.killpg(os.getpgid(self.process.pid), signal.SIGKILL)  # SIGKILL shell and its child processes
+                    time.sleep(timeout)
+                    self.is_running = False
+                    self.process = None
+                    return "Script stopped"
 
-            else:
+                else:
+                    self.is_running = False
+                    self.process = None
+                    return "Script stopped"
+            except Exception as e:
                 self.is_running = False
                 self.process = None
-                return "Script stopped"
+                return f"---------------- Error/Exception in script termination ----------------\n{e}"
 
         else:
             return "No script is currently running"
