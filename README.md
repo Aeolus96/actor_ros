@@ -4,6 +4,9 @@ This package enables abstraction of the LTU ACTor autonomous development vehicle
 
 NOTE: UNDER ACTIVE CONSTRUCTION...
 
+> Use the newer sim package!!
+> https://github.com/LTU-Actor/igvc_python_simulator.git
+
 Commands:
 
 ```bash
