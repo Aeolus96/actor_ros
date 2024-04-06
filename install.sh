@@ -3,6 +3,7 @@
 # Install base packages
 sudo apt install lsb-release curl gpg
 
+
 # ----- Install requirements.txt -----
 # Check Python version
 PYTHON_VERSION=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:3])))')
@@ -22,6 +23,7 @@ fi
 # Install requirements
 pip3 install -r requirements.txt
 
+
 # ----- Install Redis -----
 # Import the Redis GPG key
 curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
@@ -36,3 +38,7 @@ sudo apt-get update
 # Install Redis
 sudo apt-get install -y redis-stack-server
 sudo apt-get install -y redis
+
+
+# ----- Make python scripts executable -----
+sudo chmod +x scripts/*.py

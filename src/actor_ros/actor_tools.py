@@ -23,6 +23,9 @@
 # Start of Utilities ----------------------------------------------------------
 
 
+from typing import Any
+
+
 class ActorStatusReader:
     """ACTor Status Reader subscribes to ACTor status messages and stores the latest values.
     Use read_from_redis=True if running outside a ROS node"""
@@ -247,17 +250,15 @@ class EStopManager:
 
         return self._send_command(f'rostopic pub --once {self.disable_topic} std_msgs/Empty "{{}}" >/dev/null 2>&1 &')
 
-    def _send_command(self, command: str) -> bool:
+    def _send_command(self, command: str) -> str:
         """Send a custom shell command using system. Generally used with rostopic pub command"""
         import os
 
         try:
             os.system(command)
-            print("Command sent successfully")
-            return True
+            return "Command sent successfully"
         except Exception as e:
-            print(f"Failed to send command: {e}")
-            return False
+            return f"Failed to send command: {e}"
 
     # End of class ------------------------
 
@@ -290,8 +291,8 @@ class ScriptPlayer:
 
     def execute(self):
         """Execute the selected file in a separate process"""
-        import subprocess
         import os
+        import subprocess
         from threading import Thread
 
         if self.is_running:
@@ -302,7 +303,7 @@ class ScriptPlayer:
 
         # Set the running flag and Clear the output text to allow new output
         self.is_running = True
-        self.output_text = ["starting script...", "========"]
+        self.output_text = ["initializing script..."]
 
         try:
             # NOTE: "rosrun actor_ros <script_name>" can be used, this will likely impact how logging and stdout works
@@ -363,6 +364,14 @@ class ScriptPlayer:
         import signal
         import time
 
+        tmp_text = """
+        --------------------------------------------------------
+                           Terminating script...
+        --------------------------------------------------------
+        """
+        self.output_text.append(tmp_text)
+        print(tmp_text)
+
         if self.process and self.is_running:
             os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)  # SIGTERM shell and its child processes
             time.sleep(timeout)
@@ -411,5 +420,81 @@ class YAMLReader:
             except Exception as e:
                 print(f"Failed to load YAML file: {e}")
                 self.params = None
+
+    # End of class ------------------------
+
+
+class RedisReader:
+    """Read Key-Value pairs from Redis server"""
+
+    def __init__(self):
+        """Initialize the Redis Reader"""
+
+        # Add Variables to read from Redis server -------------------------------------------------
+        self.image_1 = None
+
+        # -----------------------------------------------------------------------------------------
+
+        try:
+            self.connect_to_redis()
+        except ConnectionError as e:
+            print(e)
+            return e
+
+    def __call__(self):
+        """Call method to update the latest values"""
+        if hasattr(self, "redis"):
+            self.redis_callback()
+
+    def __del__(self):
+        """Cleanup method. Closes Redis connection"""
+        if hasattr(self, "redis"):
+            self.redis.close()
+
+    def connect_to_redis(self) -> bool:
+        """Connect to Redis server"""
+
+        import time
+
+        import redis  # Redis Key Value Store Python API
+
+        attempts = 0
+        max_attempts = 3
+
+        while attempts < max_attempts:
+            try:
+                # Attempt to connect to Redis server
+                # NOTE: Using default settings for Redis. Change if required...
+                self.redis = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+                self.redis_callback()  # Read values from redis server once
+                return True  # Connection successful
+            except redis.ConnectionError as e:
+                print(f"Failed to connect to Redis server: {e}")
+                attempts += 1
+                time.sleep(2)  # Wait for 2 seconds before retrying
+
+        print("Failed to connect to Redis server after multiple attempts. Exiting.")
+        raise ConnectionError("Failed to connect to Redis server after multiple attempts.")
+
+    def redis_callback(self) -> None:
+        """Callback to get the latest values from Redis server"""
+
+        # NOTE: type conversion is needed since Redis stores values as strings
+
+        # Add Variables to read from Redis server -------------------------------------------------
+        self.image_1 = self.to_cv_image(self.redis.get("image_1"))
+
+        # -----------------------------------------------------------------------------------------
+
+    def to_cv_image(self, image_string):
+        """Convert Redis image string to OpenCV image"""
+        import cv2
+        import numpy as np
+
+        if image_string:
+            serialized_image = image_string
+            return cv2.imdecode(np.frombuffer(serialized_image, np.uint8), cv2.IMREAD_COLOR)
+        else:
+            return None
 
     # End of class ------------------------

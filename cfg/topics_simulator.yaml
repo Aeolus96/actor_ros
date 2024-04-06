@@ -26,9 +26,12 @@ status: /actor/status
 
 # E-Stop related topics go here
 estop_state: /actor/estop/state
-estop_heartbeat: /actor/estop/heartbeat_edge
+estop_heartbeat: /actor/estop/heartbeat_core
 estop_physical_button: /actor/estop/physical_button
 estop_wireless_button: /actor/estop/wireless_button
 estop_software_button: /actor/estop/software_button
 estop_trigger: /actor/estop/trigger
 estop_reset: /actor/estop/reset
+
+# GUI related topics go here
+gui_image_topic_1: /camera/image_raw
