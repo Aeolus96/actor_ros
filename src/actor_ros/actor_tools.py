@@ -432,6 +432,9 @@ class RedisReader:
 
         # Add Variables to read from Redis server -------------------------------------------------
         self.image_1 = None
+        self.image_2 = None
+        self.image_3 = None
+        self.image_4 = None
 
         # -----------------------------------------------------------------------------------------
 
@@ -465,7 +468,7 @@ class RedisReader:
             try:
                 # Attempt to connect to Redis server
                 # NOTE: Using default settings for Redis. Change if required...
-                self.redis = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+                self.redis = redis.Redis(host="localhost", port=6379, db=0, decode_responses=False)
                 self.redis_callback()  # Read values from redis server once
                 return True  # Connection successful
             except redis.ConnectionError as e:
@@ -479,21 +482,23 @@ class RedisReader:
     def redis_callback(self) -> None:
         """Callback to get the latest values from Redis server"""
 
-        # NOTE: type conversion is needed since Redis stores values as strings
-
         # Add Variables to read from Redis server -------------------------------------------------
-        self.image_1 = self.to_cv_image(self.redis.get("image_1"))
+        self.image_1 = self.to_pil_image(self.redis.get("image_1"))
+        self.image_2 = self.to_pil_image(self.redis.get("image_2"))
+        self.image_3 = self.to_pil_image(self.redis.get("image_3"))
+        self.image_4 = self.to_pil_image(self.redis.get("image_4"))
 
         # -----------------------------------------------------------------------------------------
+        # NOTE: type conversion is needed since Redis stores values as strings
 
-    def to_cv_image(self, image_string):
-        """Convert Redis image string to OpenCV image"""
-        import cv2
-        import numpy as np
+    def to_pil_image(self, image_binary):
+        """Convert Redis image byte string to PIL image"""
+        import io
 
-        if image_string:
-            serialized_image = image_string
-            return cv2.imdecode(np.frombuffer(serialized_image, np.uint8), cv2.IMREAD_COLOR)
+        from PIL import Image
+
+        if image_binary is not None:
+            return Image.open(io.BytesIO(image_binary))
         else:
             return None
 

@@ -4,8 +4,10 @@ import sys
 import time  # Time library
 
 import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
+import numpy as np
 import rospkg  # ROS Package Utilities
 from nicegui import ui  # NiceGUI library
+from PIL import Image
 
 # ROS I/O -------------------------------------------------------------------------------------------------------------
 # NOTE: using a rospy node should be avoided in this python script.
@@ -24,7 +26,7 @@ else:  # Use Redis to get ACTor Status msgs ------------------------------------
 
 # GUI Support -----------------------------------
 store = actor_tools.RedisReader()
-ui.timer(interval=(1 / 30), callback=lambda: store())  # Update values from the Redis key-value store with a timer
+ui.timer(interval=(1 / 30), callback=lambda: store())  # Update store with a timer
 
 # E-STOP ----------------------------------------
 estop = actor_tools.EStopManager()
@@ -55,6 +57,7 @@ footer_label_classes = " select-none font-bold mx-auto text-xs " + text_color_cl
 grid_card_classes = " shadow-none m-auto gap-2 p-2 border-4 grid " + text_color_classes
 button_classes = " w-full h-full m-auto text-bold " + text_color_classes
 button_props = " stack push no-caps " + text_color_props + button_color_props
+image_props = " loading=eager no-transition no-spinner fit=scale-down "
 
 
 # GUI Design ----------------------------------------------------------------------------------------------------------
@@ -168,8 +171,11 @@ with ui.column().classes("w-1/2"):
         #     .props("readonly dense")
         # )
         # log_area.visible = False
-        
-    ui.image().bind_source_from(store, "image_1")
+
+    image_1 = ui.image().props(image_props).bind_source_from(store, "image_1")
+    image_2 = ui.image().props(image_props).bind_source_from(store, "image_2")
+    image_3 = ui.image().props(image_props).bind_source_from(store, "image_3")
+    image_4 = ui.image().props(image_props).bind_source_from(store, "image_4")
 
 
 # Footer --------------------------------------------------------------------------------
