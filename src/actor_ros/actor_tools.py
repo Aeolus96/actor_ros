@@ -23,6 +23,9 @@
 # Start of Utilities ----------------------------------------------------------
 
 
+from typing import Any
+
+
 class ActorStatusReader:
     """ACTor Status Reader subscribes to ACTor status messages and stores the latest values.
     Use read_from_redis=True if running outside a ROS node"""
@@ -206,35 +209,35 @@ class EStopManager:
     """Manager for E-Stop functionality. E-Stop can be triggered from anywhere.
     Also provides a way to reset a software E-Stop, enable and disable the Drive-By-Wire System."""
 
-    # actor/e_stop/state - Bool
-    # actor/e_stop/physical_button - Bool
-    # actor/e_stop/wireless_button - Bool
-    # actor/e_stop/trigger - Empty
-    # actor/e_stop/reset - Empty
-    # actor/e_stop/heartbeat_edge - Header
-    # actor/e_stop/heartbeat_core - Header
+    # actor/estop/state - Bool
+    # actor/estop/physical_button - Bool
+    # actor/estop/wireless_button - Bool
+    # actor/estop/trigger - Empty
+    # actor/estop/reset - Empty
+    # actor/estop/heartbeat_edge - Header
+    # actor/estop/heartbeat_core - Header
 
     def __init__(self):
         """Initialize the E-Stop Manager for any script"""
-        self.e_stop_topic = "/actor/e_stop/trigger"
-        self.e_stop_reset_topic = "/actor/e_stop/reset"
+        self.estop_topic = "/actor/estop/trigger"
+        self.estop_reset_topic = "/actor/estop/reset"
         self.enable_topic = "/vehicle/enable"
         self.disable_topic = "/vehicle/disable"
 
     def __call__(self) -> bool:
         """Call method to trigger E-Stop using the instance of E-Stop Manager"""
-        return self.trigger_e_stop()
+        return self.trigger_estop()
 
-    def trigger_e_stop(self) -> bool:
+    def trigger_estop(self) -> bool:
         """Trigger E-Stop by publishing an empty message to the E-Stop topic using rostopic pub command"""
 
-        return self._send_command(f'rostopic pub --once {self.e_stop_topic} std_msgs/Empty "{{}}" >/dev/null 2>&1 &')
+        return self._send_command(f'rostopic pub --once {self.estop_topic} std_msgs/Empty "{{}}" >/dev/null 2>&1 &')
 
     def reset(self) -> bool:
         """Resets E-Stop by publishing an empty message to the E-Stop reset topic using rostopic pub command"""
 
         return self._send_command(
-            f'rostopic pub --once {self.e_stop_reset_topic} std_msgs/Empty "{{}}" >/dev/null 2>&1 &'
+            f'rostopic pub --once {self.estop_reset_topic} std_msgs/Empty "{{}}" >/dev/null 2>&1 &'
         )
 
     def enable_dbw(self) -> bool:
@@ -247,17 +250,15 @@ class EStopManager:
 
         return self._send_command(f'rostopic pub --once {self.disable_topic} std_msgs/Empty "{{}}" >/dev/null 2>&1 &')
 
-    def _send_command(self, command: str) -> bool:
+    def _send_command(self, command: str) -> str:
         """Send a custom shell command using system. Generally used with rostopic pub command"""
         import os
 
         try:
             os.system(command)
-            print("Command sent successfully")
-            return True
+            return "Command sent successfully"
         except Exception as e:
-            print(f"Failed to send command: {e}")
-            return False
+            return f"Failed to send command: {e}"
 
     # End of class ------------------------
 
@@ -290,6 +291,7 @@ class ScriptPlayer:
 
     def execute(self):
         """Execute the selected file in a separate process"""
+        import os
         import subprocess
         from threading import Thread
 
@@ -301,13 +303,14 @@ class ScriptPlayer:
 
         # Set the running flag and Clear the output text to allow new output
         self.is_running = True
-        self.output_text = ["starting script...", "========"]
+        self.output_text = ["initializing script..."]
 
         try:
             # NOTE: "rosrun actor_ros <script_name>" can be used, this will likely impact how logging and stdout works
             self.process = subprocess.Popen(
                 [f"python3 -u {self.active_directory}{self.selected_file}"],
                 shell=True,  # Needed to source ROS using .bashrc
+                preexec_fn=os.setsid,  # Set process id of the new process group
                 stdout=subprocess.PIPE,  # Captures print() output # NOTE: ROS logging should be used to maintain logs
                 stderr=subprocess.STDOUT,  # Captures Raised Errors and Exceptions
                 universal_newlines=True,
@@ -330,44 +333,69 @@ class ScriptPlayer:
     def monitor_process(self):
         """Monitor the process and gets the return code"""
 
-        self.process_return_code = self.process.wait()
-        self.is_running = False
-        self.output_text.append(f"Script returncode: {self.process_return_code}")
+        try:
+            self.process_return_code = self.process.wait()
+            self.is_running = False
+            self.output_text.append(f"Script returncode: {self.process_return_code}")
+        except Exception as e:
+            print(f"---------------- Exception in monitor_process ----------------\n{e}")
+            self.is_running = False
 
     def read_output(self):
         """Read output stream and add lines into output_text
         stream is direct input stream from stdout or stderr"""
-        while self.process.poll() is None:
-            line = self.process.stdout.readline()
-            print(line, end="")  # Display the line in the shell
-            line = line.rstrip("\n")  # Remove the newline character
-            self.output_text.append(line)  # Store the line in the output_text list
 
-        # When EOF is reached (process is terminated), set the running flag to False just in case
-        self.is_running = False
+        try:
+            while self.process.poll() is None:
+                line = self.process.stdout.readline()
+                print(line, end="")  # Display the line in the shell
+                line = line.rstrip("\n")  # Remove the newline character
+                self.output_text.append(line)  # Store the line in the output_text list
 
-    def stop_script(self, timeout=5.0):
+            # When EOF is reached (process is terminated), set the running flag to False just in case
+            self.is_running = False
+        except Exception as e:
+            print(f"---------------- Exception in read_output ----------------\n{e}")
+            self.is_running = False
+
+    def stop_script(self, timeout=0.5):
         """Stop the currently running script"""
+        import os  # have to use os.killpg because subprocess spawns a shell with script as its child process
+        import signal
+        import time
+
+        tmp_text = """
+        --------------------------------------------------------
+                           Terminating script...
+        --------------------------------------------------------
+        """
+        self.output_text.append(tmp_text)
+        print(tmp_text)
 
         if self.process and self.is_running:
-            self.process.terminate()  # SIGTERM
-            self.process.wait(timeout=timeout)
+            os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)  # SIGTERM shell and its child processes
+            time.sleep(timeout)
 
             if self.process is None:  # Process has been successfully terminated
                 self.is_running = False
                 return "Script stopped"
 
-            if self.process.poll() is None:  # If process is still running
-                self.process.terminate()  # Forcefully kill the process - SIGKILL
-                self.process.wait()
-                self.is_running = False
-                self.process = None
-                return "Script stopped"
+            try:
+                if self.process.poll() is None:  # If process is still running
+                    os.killpg(os.getpgid(self.process.pid), signal.SIGKILL)  # SIGKILL shell and its child processes
+                    time.sleep(timeout)
+                    self.is_running = False
+                    self.process = None
+                    return "Script stopped"
 
-            else:
+                else:
+                    self.is_running = False
+                    self.process = None
+                    return "Script stopped"
+            except Exception as e:
                 self.is_running = False
                 self.process = None
-                return "Script stopped"
+                return f"---------------- Error/Exception in script termination ----------------\n{e}"
 
         else:
             return "No script is currently running"
@@ -392,5 +420,86 @@ class YAMLReader:
             except Exception as e:
                 print(f"Failed to load YAML file: {e}")
                 self.params = None
+
+    # End of class ------------------------
+
+
+class RedisReader:
+    """Read Key-Value pairs from Redis server"""
+
+    def __init__(self):
+        """Initialize the Redis Reader"""
+
+        # Add Variables to read from Redis server -------------------------------------------------
+        self.image_1 = None
+        self.image_2 = None
+        self.image_3 = None
+        self.image_4 = None
+
+        # -----------------------------------------------------------------------------------------
+
+        try:
+            self.connect_to_redis()
+        except ConnectionError as e:
+            print(e)
+            return e
+
+    def __call__(self):
+        """Call method to update the latest values"""
+        if hasattr(self, "redis"):
+            self.redis_callback()
+
+    def __del__(self):
+        """Cleanup method. Closes Redis connection"""
+        if hasattr(self, "redis"):
+            self.redis.close()
+
+    def connect_to_redis(self) -> bool:
+        """Connect to Redis server"""
+
+        import time
+
+        import redis  # Redis Key Value Store Python API
+
+        attempts = 0
+        max_attempts = 3
+
+        while attempts < max_attempts:
+            try:
+                # Attempt to connect to Redis server
+                # NOTE: Using default settings for Redis. Change if required...
+                self.redis = redis.Redis(host="localhost", port=6379, db=0, decode_responses=False)
+                self.redis_callback()  # Read values from redis server once
+                return True  # Connection successful
+            except redis.ConnectionError as e:
+                print(f"Failed to connect to Redis server: {e}")
+                attempts += 1
+                time.sleep(2)  # Wait for 2 seconds before retrying
+
+        print("Failed to connect to Redis server after multiple attempts. Exiting.")
+        raise ConnectionError("Failed to connect to Redis server after multiple attempts.")
+
+    def redis_callback(self) -> None:
+        """Callback to get the latest values from Redis server"""
+
+        # Add Variables to read from Redis server -------------------------------------------------
+        self.image_1 = self.to_pil_image(self.redis.get("image_1"))
+        self.image_2 = self.to_pil_image(self.redis.get("image_2"))
+        self.image_3 = self.to_pil_image(self.redis.get("image_3"))
+        self.image_4 = self.to_pil_image(self.redis.get("image_4"))
+
+        # -----------------------------------------------------------------------------------------
+        # NOTE: type conversion is needed since Redis stores values as strings
+
+    def to_pil_image(self, image_binary):
+        """Convert Redis image byte string to PIL image"""
+        import io
+
+        from PIL import Image
+
+        if image_binary is not None:
+            return Image.open(io.BytesIO(image_binary))
+        else:
+            return None
 
     # End of class ------------------------

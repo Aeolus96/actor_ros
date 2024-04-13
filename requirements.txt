@@ -2,4 +2,5 @@ munch==4.0.0
 PyYAML==6.0.1
 rospkg==1.5.0
 redis==5.0.3
-nicegui==1.4.18
+nicegui==1.4.20
+pillow==10.3.0

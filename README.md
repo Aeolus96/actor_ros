@@ -4,15 +4,20 @@ This package enables abstraction of the LTU ACTor autonomous development vehicle
 
 NOTE: UNDER ACTIVE CONSTRUCTION...
 
+> Use the newer sim package!!
+> https://github.com/LTU-Actor/igvc_python_simulator.git
+
 Commands:
 
 ```bash
-roslaunch dbw_polaris_can dbw.launch
+# Run the install script to install dependencies. It also runs the requirements.txt file automatically
+./install.sh
 
-# Calibrate steering once at the beginning
-rostopic pub -1 /vehicle/calibrate_steering std_msgs/Empty "{}"
+# Build the package
+catkin build actor_ros
 
-# Enable vehicle continuously to use via ROS
-rostopic pub /vehicle/enable std_msgs/Empty "{}"
+# Source ROS workspace
 
+# Launch
+roslaunch actor_ros actor.launch simulated:=true
 ```
