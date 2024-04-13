@@ -36,7 +36,7 @@ actor = actor_ros.scripting_tools.ActorScriptTools()  # ACTor Scripting Tools in
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-actor.print_title("Q3 - Lane Keeping")
+actor.print_title("F3.2 - Left Turn Intersection")
 
 # estop.reset()  # Reset E-Stop if needed - Preferably this should done manually via the GUI
 estop.enable_dbw()  # Enable vehicle control via ROS - one time message
@@ -46,6 +46,8 @@ actor.print_highlights("Lane keeping until barrel is detected")
 # Pass functions to drive_for() to drive with function based steering until a custom end condition is met.
 actor.drive_for(speed=1.5, angle=actor.lane_center, function=actor.lidar_detect(lidar_zone=1, max_distance=5.0))
 
+actor.stop_vehicle(duration=5.0)
+
 actor.drive_for(speed=1.5, angle=0.0, speed_distance=6.0)
 
 actor.drive_for(speed=1.5, angle=1.0, speed_distance=6.0)
@@ -54,7 +56,7 @@ actor.drive_for(speed=1.5, angle=actor.lane_center, function=actor.lidar_detect(
 
 actor.stop_vehicle(duration=5.0)
 
-actor.print_highlights("Q3 - Lane Keeping Complete!")
+actor.print_highlights("F3.2 - Left Turn Complete!")
 
 
 # Ex: if needed disable or estop can be triggered anywhere
