@@ -59,7 +59,7 @@ actor.print_highlights("Q3 - Lane Keeping Complete!")
 # estop.disable_dbw()  # Disable vehicle control via ROS - one time message
 # # NOTE: ^ This is not an E-Stop. It just disables vehicle control
 # # OR
-# estop.trigger_e_stop()
+# estop.trigger_estop()
 # # OR
 # estop()  # same as above
 

@@ -1,29 +1,35 @@
 #!/usr/bin/env python3
 
+import sys
 import time  # Time library
 
 import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
+import numpy as np
 import rospkg  # ROS Package Utilities
-
-# from local_file_picker import local_file_picker  # local_file_picker (NiceGUI example)
 from nicegui import ui  # NiceGUI library
+from PIL import Image
 
 # ROS I/O -------------------------------------------------------------------------------------------------------------
 # NOTE: using a rospy node should be avoided in this python script.
 # Since NiceGUI and ROS both requrie the main thread to run, this is a bad idea and will cause event handling errors
-time.sleep(4)  # Wait for 4 seconds for status node to start
-# Read ACTor Status - Subscribe to ACTor Status Messages and constantly update using dictdatabase
-# NOTE: Choose EITHER redis or simulated values for testing purposes
-# TODO: Maybe use subprocess to run a CLI param check to see if sim=True
-# Redis -----------------------------------------
-# status = actor_tools.ActorStatusReader(simulate_for_testing=True)
-# ui.timer(interval=(1 / 60), callback=lambda: status())  # Update status from database with a timer
-# Simulated Values ------------------------------
-status = actor_tools.ActorStatusReader(simulate_for_testing=True)
-ui.timer(interval=(1), callback=lambda: status())  # Update status from simulated values
+
+# Read ACTor Status - Subscribe to ACTor Status Messages and constantly update using Redis key value store
+if sys.argv[1].lower() == "true":  # Simulated Values -------------------------------
+    print("Setting up GUI for simulation...")
+    # NOTE: For now, only speed and road angle are updated using twist input
+    status = actor_tools.ActorStatusReader(read_from_redis=True)  # add simulate_for_testing=True to test gui elements
+    ui.timer(interval=(1), callback=lambda: status())  # Update status from simulated values
+else:  # Use Redis to get ACTor Status msgs -----------------------------------------
+    print("Setting up GUI for Real Vehicle...")
+    status = actor_tools.ActorStatusReader(read_from_redis=True)
+    ui.timer(interval=(1 / 60), callback=lambda: status())  # Update status from database with a timer
+
+# GUI Support -----------------------------------
+store = actor_tools.RedisReader()
+ui.timer(interval=(1 / 30), callback=lambda: store())  # Update store with a timer
 
 # E-STOP ----------------------------------------
-e_stop = actor_tools.EStopManager()
+estop = actor_tools.EStopManager()
 
 # Script Player ---------------------------------
 # Using rospkg to get the full path to the directory containing the scripts
@@ -51,10 +57,17 @@ footer_label_classes = " select-none font-bold mx-auto text-xs " + text_color_cl
 grid_card_classes = " shadow-none m-auto gap-2 p-2 border-4 grid " + text_color_classes
 button_classes = " w-full h-full m-auto text-bold " + text_color_classes
 button_props = " stack push no-caps " + text_color_props + button_color_props
+image_props = " loading=eager no-transition no-spinner fit=scale-down "
 
 
 # GUI Design ----------------------------------------------------------------------------------------------------------
-ui.page_title("ACTor Web GUI")
+ui.page_title("ACTor Web UI")
+ui.add_css("""
+    :root {
+        --nicegui-default-padding: 0.5rem;
+        --nicegui-default-gap: 0.5rem;
+    }
+""")
 
 
 # Header --------------------------------------------------------------------------------
@@ -64,26 +77,43 @@ with ui.header().classes(replace="row items-center") as header:
         ui.tab("B")
         ui.tab("C")
 
-with ui.column().classes("w-full h-full"):
+with ui.column().classes("w-1/2"):
     # Script Selection and Playback Card
     with ui.card() as script_card:
-        script_card.classes(grid_card_classes + " grid-cols-4 grid-rows-2")
+        script_card.classes(grid_card_classes + " w-full grid-cols-4 grid-rows-2")
+
+        async def update_list():
+            """Update the dropdown list of script files"""
+            ui.notify(script_player.load_files(), type="positive", position="top", timeout=2000)
+            file_select_dropdown.options = script_player.file_list
 
         async def select_file(filename: str) -> None:
             """Select a script file name and load it"""
 
-            # script_player.selected_file = filename
-            ui.notify(f"Script selected: {script_player.selected_file}")
-            log_area.props(f" label='OUTPUT: {script_player.selected_file}' ")
+            ui.notify(f"Script selected: {script_player.selected_file}", position="top", timeout=2000)
+            scrolling_log_area.clear()
+            with scrolling_log_area:
+                ui.label(f" Route Ready: '{script_player.selected_file}' ")
 
         async def handle_file() -> None:
             """Execute the selected file in a separate process"""
 
             if script_player.is_running:  # stop the script
-                ui.notify(script_player.stop_script())
+                ui.notify(script_player.stop_script(), type="negative", position="top", timeout=2000)
+                temp_text = """
+                
+                **********************
+                *** SCRIPT STOPPED ***
+                **********************
+                
+                """
+                print(temp_text)
 
             else:  # start the script
-                ui.notify(script_player.execute())
+                scrolling_log_area.clear()
+                global text_buffer
+                text_buffer = []
+                ui.notify(script_player.execute(), type="positive", position="top", timeout=2000)
 
         # Dropdown Menu -----
         file_select_dropdown = (
@@ -99,7 +129,7 @@ with ui.column().classes("w-full h-full"):
 
         # Reload Button -----
         reload_button = (
-            ui.button("Reload", on_click=lambda: ui.notify(script_player.load_files()))
+            ui.button("Reload", on_click=update_list)
             .classes(button_classes + " col-span-2 row-span-1")
             .props(button_props)
         )
@@ -113,13 +143,39 @@ with ui.column().classes("w-full h-full"):
         )
 
     with ui.card() as log_card:
-        log_card.classes(grid_card_classes + " w-full h-96")
-        log_area = (
-            ui.textarea()
-            .bind_value_from(script_player, "output_text", backward=lambda x: "\n".join(x))
-            .classes("h-full overflow-scroll")
-            .props("readonly dense")
-        )
+        log_card.classes(grid_card_classes + " w-full")
+
+        global text_buffer  # Used as Subset of script_player.output_text to keep track of newly appended lines
+        text_buffer = []
+
+        def add_label_on_change():
+            """Add a new label to scroll area when output_text changes"""
+            global text_buffer
+
+            length_difference = len(script_player.output_text) - len(text_buffer)
+            if length_difference > 0:  # Check if output_text has newly appended lines
+                with scrolling_log_area:
+                    for i in range(-length_difference, 0):
+                        text = script_player.output_text[i]  # Get the newly appended line
+                        text_buffer.append(text)
+                        ui.label(text).classes("font-mono leading-none whitespace-pre")
+                scrolling_log_area.scroll_to(percent=1.0, duration=0.1)  # Scroll to bottom
+
+        scrolling_log_area = ui.scroll_area().classes("gap-0 show-scrollbar")
+        ui.timer(interval=(1 / 60), callback=lambda: add_label_on_change())  # Update log text
+
+        # log_area = (
+        #     ui.textarea()
+        #     .bind_value_from(script_player, "output_text", backward=lambda x: "\n".join(x))
+        #     .classes("h-full overflow-scroll")
+        #     .props("readonly dense")
+        # )
+        # log_area.visible = False
+
+    image_1 = ui.image().props(image_props).bind_source_from(store, "image_1")
+    image_2 = ui.image().props(image_props).bind_source_from(store, "image_2")
+    image_3 = ui.image().props(image_props).bind_source_from(store, "image_3")
+    image_4 = ui.image().props(image_props).bind_source_from(store, "image_4")
 
 
 # Footer --------------------------------------------------------------------------------
@@ -176,7 +232,6 @@ with ui.footer(value=True) as footer:
         ui.label("DISABLED").classes(footer_label_classes + " my-auto").bind_visibility_from(
             status, "is_enabled", backward=lambda state: not state
         )
-        # NOTE: not_is_enabled is a relational property written in the status node. It is solely used for GUI purposes
 
     # Speed -----
     with ui.card() as speed_card:
@@ -203,37 +258,41 @@ with ui.footer(value=True) as footer:
 # NOTE: needs to be the last element to display on top of all other content
 with ui.page_sticky(position="bottom", x_offset=20, y_offset=20):
     # UI functions only - ROS stuff handled separately
-    async def activate_e_stop():
-        e_stop()  # Using EStopManager
+    async def activate_estop():
+        """Activate E-Stop using EStopManager and notify user"""
+        estop()  # Using EStopManager
+        ui.notify("E-STOP ACTIVATED", type="warning", position="center", timeout=3000)
 
-        ui.notify("E-STOP ACTIVATED", type="warning", position="center")
+    async def reset_estop():
+        """Reset E-Stop using EStopManager and notify user"""
+        estop.reset()  # Using EStopManager
+        ui.notify("E-STOP RESET", type="positive", position="center", timeout=3000)
 
-        e_stop_button.props("color=dark text-color=positive")
-        e_stop_spinner.props("color=positive")
-
-    async def reset_e_stop():
-        e_stop.reset()  # Using EStopManager
-
-        ui.notify("E-STOP RESET", type="positive", position="center")
-
-        e_stop_button.props("color=warning text-color=negative")
-        e_stop_spinner.props("color=negative")
+    def check_estop_state():
+        """Check E-Stop state using status.estop_state and update button accordingly"""
+        if status.estop_state:  # Active
+            estop_button.props("color=dark text-color=positive")
+            estop_spinner.props("color=positive")
+        else:  # Inactive
+            estop_button.props("color=warning text-color=negative")
+            estop_spinner.props("color=negative")
 
     # E-Stop button -----
-    with ui.button(on_click=lambda: activate_e_stop() if not status.estop_state else reset_e_stop()) as e_stop_button:
-        e_stop_button.props(button_props + " color=warning text-color=negative")
-        e_stop_button.classes("w-20 h-20 m-auto text-bold text-center")
-        e_stop_button.bind_text_from(status, "estop_state", backward=lambda state: "RESET" if state else "STOP")
+    with ui.button(on_click=lambda: activate_estop() if not status.estop_state else reset_estop()) as estop_button:
+        estop_button.props(button_props + " color=warning text-color=negative")
+        estop_button.classes("w-20 h-20 m-auto text-bold text-center")
+        estop_button.bind_text_from(status, "estop_state", backward=lambda state: "RESET" if state else "STOP")
 
-        e_stop_spinner = (
+        estop_spinner = (
             ui.spinner("puff", size="20px")
             .props("color=negative")
             .classes("m-auto")
             .bind_visibility_from(status, "estop_heartbeat")
         )
 
+    ui.timer(interval=(1 / 20), callback=lambda: check_estop_state())  # Check E-Stop state with a timer
+
 
 # Run GUI -------------------------------------------------------------------------------------------------------------
 # NOTE: Needs to be the last element to run the GUI.
-# NOTE: If there are any changes made to this script while it is running, it will restart automatically
-ui.run(dark=True, reload=True, show=False)
+ui.run(dark=True, show=False)
