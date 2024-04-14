@@ -233,6 +233,32 @@ class ActorScriptTools:
             pass
 
         return self.msg_lane_center.data  # raw output from /lane_center topic
+    
+    def lidar_detect(self, lidar_zone=0, min_distance=0.0, max_distance: float = None) -> bool:
+        """Uses the LiDAR zones to detect an object near the vehicle.\n
+        Returns True if an object is detected in specified zone within min_distance and max_distance.\n
+        Zone 0: Front of Vehicle\n
+        Zone 1: Right of Vehicle\n
+        Zone 2: Left of Vehicle"""
+
+        return eval(f"{min_distance} < actor.msg_lidar_zone_{lidar_zone}_closest.data < {max_distance}")
+
+    def yolo_look_for(self, object: str = None, size: int = 0.0):
+        from std_msgs.msg import String
+        """Prompts Route-YOLO to begin looking for a specified object.\n
+        Returns whether an object was found with a size larger than param 'size'.\n
+        Objects Available: tire, stop, person"""
+
+        msg_string = String()
+        msg_string.data = object
+        self.pub_yolo.publish(msg_string)
+
+        if(object in "stopsign"):
+            return actor.msg_stop_sign_detected.data > 0 and actor.msg_stop_sign_size.data > size
+        if(object in "tires"):
+            return actor.msg_tire_detected.data > 0 and actor.msg_tire_size.data > size
+        if(object in "person"):
+            return actor.msg_person_detected.data > 0 and actor.msg_person_size.data > size
 
     # TODO: Add methods from igvc_python but make them more Pythonic a.k.a intuitive and easy to use
 

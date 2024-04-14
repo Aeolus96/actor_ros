@@ -1,24 +1,29 @@
 #!/usr/bin/env python3
 
-# Test Q.3 Lane Keeping (Go Straight)
+# Test Q.6 Right Turn
 # 1. Test Goal
-# This test is intended to evaluate if the vehicle is able to stay within lane boundaries, without wheels
-# crossing the line or driving on the line.
+# This test is intended to evaluate if the vehicle is able to make a right turn, merge into the lane and drive
+# within a lane until an obstacle is detected.
+# Figure 8: Qualification Testing. Right Turn
 # 2. Test Setup
 # The following items shall be placed on the road:
-# o Barrel 1 on the side of the road to indicate a starting point at which vehicle is stationary
-# o Barrel 2 about 50 ft away to indicate an ending point.
-# o A duct tape’s mark placed 3 ft from the Barrel 2
+# o Barrel 1 to indicate starting point at which vehicle is stationary. The Barrel 1 could be placed
+# near the stop bar, or several feet away from the stop bar per judges’ decision.
+# o Barrel 2 to indicate an ending point. The barrel is placed about 30 ft away from the stop bar
+# in the right lane
 # 3. Test Script
 # 1. Begin test run
 # 2. Judge pushes 'start' button
 # 3. Vehicle takes off from full stop at Barrel 1
-# 4. Vehicle maintains the target speed (between 4 – 5 mph)
-# 5. Vehicle reaches full stop within 3 ft (+- 2 inches) from the Barrel 2
-# 6. End test run
+# 4. Vehicle maintains the target speed (between 3 – 5 mph)
+# 5. Vehicle makes right turn and merges into correct lane
+# 6. Vehicle maintains the target speed (between 3 – 5 mph)
+# 7. Vehicle reaches full stop within 5 ft from the Barrel 2
+# 8. End test run
 # 4. Evaluation
-# Pass Criteria - vehicle stays within lane boundaries without wheels crossing the lines. Vehicle
-# reaches full stop within 3 ft (+- 2 inches) from Barrel 2.
+# Pass Criteria - vehicle is able to turn right, merge into correct lane and stop without hitting abarrel
+# or crossing boundaries
+
 
 import actor_ros  # ACTor specific utility functions
 import rospy  # ROS Python API
@@ -33,13 +38,13 @@ actor = actor_ros.scripting_tools.ActorScriptTools()  # ACTor Scripting Tools in
 
 
 # Custom end condition as a function just for this script. Functions like these can added to module as needed...
-def stop_at_barrel() -> bool:
-    distance = actor.msg_lidar_zone_0_closest.data
-    return 0 < distance < 3.0
+def stop_at_stopsign() -> bool:
+    distance = actor.msg_lidar_zone_1_closest.data
+    return 0 < distance < 3.0 #NOTE: these values are untested
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-actor.print_title("Q3 - Lane Keeping")
+actor.print_title("Q6 - Right Turn")
 
 # estop.reset()  # Reset E-Stop if needed - Preferably this should done manually via the GUI
 estop.enable_dbw()  # Enable vehicle control via ROS - one time message
@@ -47,7 +52,13 @@ estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 actor.print_highlights("Lane keeping until barrel is detected")
 
 # Pass functions to drive_for() to drive with function based steering until a custom end condition is met.
-actor.drive_for(speed=3.0, angle=actor.lane_center, function=stop_at_barrel)
+actor.drive_for(speed=1.5, angle=actor.lane_center, function=actor.lidar_detect(lidar_zone=1, max_distance=5.0))
+
+actor.drive_for(speed=1.5, angle=0.0, speed_distance=6.0)
+
+actor.drive_for(speed=1.5, angle=-1.0, speed_distance=5.0)
+
+actor.drive_for(speed=1.5, angle=actor.lane_center, function=actor.lidar_detect(lidar_zone=0, max_distance=3.0))
 
 actor.stop_vehicle(duration=5.0)
 
@@ -59,7 +70,7 @@ actor.print_highlights("Q3 - Lane Keeping Complete!")
 # estop.disable_dbw()  # Disable vehicle control via ROS - one time message
 # # NOTE: ^ This is not an E-Stop. It just disables vehicle control
 # # OR
-# estop.trigger_estop()
+# estop.trigger_e_stop()
 # # OR
 # estop()  # same as above
 

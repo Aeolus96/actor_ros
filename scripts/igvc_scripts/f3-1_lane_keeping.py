@@ -39,7 +39,7 @@ def stop_at_barrel() -> bool:
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-actor.print_title("Q3 - Lane Keeping")
+actor.print_title("F3.1 - Lane Keeping")
 
 # estop.reset()  # Reset E-Stop if needed - Preferably this should done manually via the GUI
 estop.enable_dbw()  # Enable vehicle control via ROS - one time message
@@ -51,7 +51,7 @@ actor.drive_for(speed=3.0, angle=actor.lane_center, function=stop_at_barrel)
 
 actor.stop_vehicle(duration=5.0)
 
-actor.print_highlights("Q3 - Lane Keeping Complete!")
+actor.print_highlights("F3.1 - Lane Keeping Complete!")
 
 
 # Ex: if needed disable or estop can be triggered anywhere
@@ -59,7 +59,7 @@ actor.print_highlights("Q3 - Lane Keeping Complete!")
 # estop.disable_dbw()  # Disable vehicle control via ROS - one time message
 # # NOTE: ^ This is not an E-Stop. It just disables vehicle control
 # # OR
-# estop.trigger_estop()
+# estop.trigger_e_stop()
 # # OR
 # estop()  # same as above
 
