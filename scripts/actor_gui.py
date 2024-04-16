@@ -106,11 +106,16 @@ ui.add_css("""
 with ui.splitter(limits=(30, 80), value=50) as vertical_splitter:
     vertical_splitter.props("").classes("w-full h-screen gap-4")
 
+    with vertical_splitter.separator:
+        ui.icon("settings_ethernet", color="primary", size="sm")
+
     # Left Side - ROSBoard ----------
     with vertical_splitter.before:
         # find ip address
         iframe = ui.element("iframe").style("width:100%; height:100%;")
         iframe._props["src"] = rosboard_url
+        with ui.link(target=rosboard_url, new_tab=True).classes("absolute right-0 top-0"):
+            ui.button(icon="open_in_new").props("color=grey-2 flat square").classes("w-14 h-14")
 
     # Right Side - Script Player -----------
     with vertical_splitter.after:
@@ -167,7 +172,7 @@ with ui.splitter(limits=(30, 80), value=50) as vertical_splitter:
             reload_button = (
                 ui.button(on_click=update_list)
                 .classes(button_classes + " col-span-1 row-span-1")
-                .props("color=grey-8 push no-caps icon=refresh")
+                .props(button_color_props + " push no-caps icon=refresh")
             )
 
             # Start/Stop Button -----
