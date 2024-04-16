@@ -7,7 +7,7 @@ import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
 import numpy as np
 import rospkg  # ROS Package Utilities
 from nicegui import ui  # NiceGUI library
-from PIL import Image
+import socket
 
 # ROS I/O -------------------------------------------------------------------------------------------------------------
 # NOTE: using a rospy node should be avoided in this python script.
@@ -24,9 +24,25 @@ else:  # Use Redis to get ACTor Status msgs ------------------------------------
     status = actor_tools.ActorStatusReader(read_from_redis=True)
     ui.timer(interval=(1 / 60), callback=lambda: status())  # Update status from database with a timer
 
-# GUI Support -----------------------------------
-store = actor_tools.RedisReader()
-ui.timer(interval=(1 / 30), callback=lambda: store())  # Update store with a timer
+
+# Get hostname and IP address for ROSboard ---------------------------------
+def get_local_ip():
+    """Uses socket to get the machine ip on network"""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("10.255.255.255", 1))
+        local_ip = s.getsockname()[0]
+    except Exception as e:
+        print(e)
+        local_ip = "127.0.0.1"
+    finally:
+        s.close()
+    return local_ip
+
+
+ip_address = get_local_ip()  # machine ip on network
+rosboard_port = 8888
+rosboard_url = f"http://{ip_address}:{rosboard_port}/"
 
 # E-STOP ----------------------------------------
 estop = actor_tools.EStopManager()
@@ -54,10 +70,26 @@ footer_card_classes = (
     " shadow-none rounded-none w-full h-24 gap-0 p-0 mx-auto " + text_color_classes + background_color_classes
 )
 footer_label_classes = " select-none font-bold mx-auto text-xs " + text_color_classes
-grid_card_classes = " shadow-none m-auto gap-2 p-2 border-4 grid " + text_color_classes
+grid_card_classes = " shadow-none m-auto gap-2 p-2 border-2 grid " + text_color_classes
 button_classes = " w-full h-full m-auto text-bold " + text_color_classes
 button_props = " stack push no-caps " + text_color_props + button_color_props
 image_props = " loading=eager no-transition no-spinner fit=scale-down "
+
+
+class PlayButton(ui.button):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.on("click", self.toggle)
+
+    def toggle(self) -> None:
+        """Toggle the button state."""
+        self.update()
+
+    def update(self) -> None:
+        self.props(
+            f'color={"negative" if script_player.is_running else "positive"} icon-right={"stop" if script_player.is_running else "play_arrow"}'  # text-color={"grey-2" if script_player.is_running else "grey-4"}'
+        )
+        super().update()
 
 
 # GUI Design ----------------------------------------------------------------------------------------------------------
@@ -70,112 +102,109 @@ ui.add_css("""
 """)
 
 
-# Header --------------------------------------------------------------------------------
-with ui.header().classes(replace="row items-center") as header:
-    with ui.tabs() as tabs:
-        ui.tab("A")
-        ui.tab("B")
-        ui.tab("C")
+# Page Layout ---------------------------------------------------------------------------
+with ui.splitter(limits=(30, 80), value=50) as vertical_splitter:
+    vertical_splitter.props("").classes("w-full h-screen gap-4")
 
-with ui.column().classes("w-1/2"):
-    # Script Selection and Playback Card
-    with ui.card() as script_card:
-        script_card.classes(grid_card_classes + " w-full grid-cols-4 grid-rows-2")
+    # Left Side - ROSBoard ----------
+    with vertical_splitter.before:
+        # find ip address
+        iframe = ui.element("iframe").style("width:100%; height:100%;")
+        iframe._props["src"] = rosboard_url
 
-        async def update_list():
-            """Update the dropdown list of script files"""
-            ui.notify(script_player.load_files(), type="positive", position="top", timeout=2000)
-            file_select_dropdown.options = script_player.file_list
+    # Right Side - Script Player -----------
+    with vertical_splitter.after:
+        # Script Selection and Playback Card -----
+        with ui.card() as script_card:
+            script_card.classes(grid_card_classes + " w-full grid-cols-5 grid-rows-2")
 
-        async def select_file(filename: str) -> None:
-            """Select a script file name and load it"""
+            async def update_list():
+                """Update the dropdown list of script files"""
+                ui.notify(script_player.load_files(), type="positive", position="top", timeout=2000)
+                file_select_dropdown.options = script_player.file_list
 
-            ui.notify(f"Script selected: {script_player.selected_file}", position="top", timeout=2000)
-            scrolling_log_area.clear()
-            with scrolling_log_area:
-                ui.label(f" Route Ready: '{script_player.selected_file}' ")
+            async def select_file(filename: str) -> None:
+                """Select a script file name and load it"""
 
-        async def handle_file() -> None:
-            """Execute the selected file in a separate process"""
-
-            if script_player.is_running:  # stop the script
-                ui.notify(script_player.stop_script(), type="negative", position="top", timeout=2000)
-                temp_text = """
-                
-                **********************
-                *** SCRIPT STOPPED ***
-                **********************
-                
-                """
-                print(temp_text)
-
-            else:  # start the script
+                ui.notify(f"Script selected: {script_player.selected_file}", position="top", timeout=2000)
                 scrolling_log_area.clear()
-                global text_buffer
-                text_buffer = []
-                ui.notify(script_player.execute(), type="positive", position="top", timeout=2000)
-
-        # Dropdown Menu -----
-        file_select_dropdown = (
-            ui.select(
-                options=script_player.file_list,
-                with_input=True,
-                clearable=True,
-                on_change=lambda e: select_file(e.value),  # Event object with the selected value
-            )
-            .classes("col-span-4 row-span-1")
-            .bind_value(script_player, "selected_file")
-        )
-
-        # Reload Button -----
-        reload_button = (
-            ui.button("Reload", on_click=update_list)
-            .classes(button_classes + " col-span-2 row-span-1")
-            .props(button_props)
-        )
-
-        # Start/Stop Button -----
-        run_button = (
-            ui.button("Start", on_click=handle_file)
-            .classes(button_classes + " col-span-2 row-span-1")
-            .props(button_props)
-            .bind_text_from(script_player, "is_running", lambda running: "Stop" if running else "Start")
-        )
-
-    with ui.card() as log_card:
-        log_card.classes(grid_card_classes + " w-full")
-
-        global text_buffer  # Used as Subset of script_player.output_text to keep track of newly appended lines
-        text_buffer = []
-
-        def add_label_on_change():
-            """Add a new label to scroll area when output_text changes"""
-            global text_buffer
-
-            length_difference = len(script_player.output_text) - len(text_buffer)
-            if length_difference > 0:  # Check if output_text has newly appended lines
                 with scrolling_log_area:
-                    for i in range(-length_difference, 0):
-                        text = script_player.output_text[i]  # Get the newly appended line
-                        text_buffer.append(text)
-                        ui.label(text).classes("font-mono leading-none whitespace-pre")
-                scrolling_log_area.scroll_to(percent=1.0, duration=0.1)  # Scroll to bottom
+                    ui.label(f"{script_player.selected_file}:")
 
-        scrolling_log_area = ui.scroll_area().classes("gap-0 show-scrollbar")
-        ui.timer(interval=(1 / 60), callback=lambda: add_label_on_change())  # Update log text
+            async def handle_file() -> None:
+                """Execute the selected file in a separate process"""
 
-        # log_area = (
-        #     ui.textarea()
-        #     .bind_value_from(script_player, "output_text", backward=lambda x: "\n".join(x))
-        #     .classes("h-full overflow-scroll")
-        #     .props("readonly dense")
-        # )
-        # log_area.visible = False
+                if script_player.is_running:  # stop the script
+                    ui.notify(script_player.stop_script(), type="negative", position="top", timeout=2000)
+                    temp_text = """
+                    
+                    **********************
+                    *** SCRIPT STOPPED ***
+                    **********************
+                    
+                    """
+                    print(temp_text)
 
-    image_1 = ui.image().props(image_props).bind_source_from(store, "image_1")
-    image_2 = ui.image().props(image_props).bind_source_from(store, "image_2")
-    image_3 = ui.image().props(image_props).bind_source_from(store, "image_3")
-    image_4 = ui.image().props(image_props).bind_source_from(store, "image_4")
+                else:  # start the script
+                    scrolling_log_area.clear()
+                    global text_buffer
+                    text_buffer = []
+                    ui.notify(script_player.execute(), type="positive", position="top", timeout=2000)
+
+            # Dropdown Menu -----
+            file_select_dropdown = (
+                ui.select(
+                    options=script_player.file_list,
+                    with_input=True,
+                    clearable=True,
+                    on_change=lambda e: select_file(e.value),  # Event object with the selected value
+                )
+                .classes("col-span-full row-span-1")
+                .bind_value(script_player, "selected_file")
+            )
+
+            # Reload Button -----
+            reload_button = (
+                ui.button(on_click=update_list)
+                .classes(button_classes + " col-span-1 row-span-1")
+                .props("color=grey-8 push no-caps icon=refresh")
+            )
+
+            # Start/Stop Button -----
+            run_button = (
+                PlayButton(on_click=handle_file)  # Wrapper around ui.button to enable toggle features
+                .classes(button_classes + " col-span-4 row-span-1")
+                .props("push no-caps icon-right=play_arrow")
+                .bind_text_from(
+                    script_player, "is_running", lambda running: "Stop Script" if running else "Start Script"
+                )
+            )
+
+        # Script Output Display Card ----------
+        with ui.card() as log_card:
+            log_card.classes(grid_card_classes + " w-full h-screen")
+
+            global text_buffer  # Used as Subset of script_player.output_text to keep track of newly appended lines
+            text_buffer = []
+
+            def add_label_on_change():
+                """Add a new label to scroll area when output_text changes"""
+                global text_buffer
+
+                length_difference = len(script_player.output_text) - len(text_buffer)
+                if length_difference > 0:  # Check if output_text has newly appended lines
+                    with scrolling_log_area:
+                        for i in range(-length_difference, 0):
+                            text = script_player.output_text[i]  # Get the newly appended line
+                            text_buffer.append(text)
+                            ui.label(text).classes("font-mono leading-none whitespace-pre")
+                    scrolling_log_area.scroll_to(percent=1.0, duration=0.1)  # Scroll to bottom
+
+                # Update the run button text and color
+                run_button.update()
+
+            scrolling_log_area = ui.scroll_area().classes("w-full h-full gap-0 show-scrollbar overflow-y-auto")
+            ui.timer(interval=(1 / 60), callback=lambda: add_label_on_change())  # Update log text
 
 
 # Footer --------------------------------------------------------------------------------

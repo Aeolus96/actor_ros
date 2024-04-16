@@ -35,3 +35,6 @@ estop_reset: /actor/estop/reset
 
 # GUI related topics go here
 gui_image_topic_1: /camera/image_raw
+gui_image_topic_2: /camera/image_raw
+gui_image_topic_3: /camera/image_raw
+gui_image_topic_4: /camera/image_raw

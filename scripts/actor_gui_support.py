@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-ROS Node for supporting ROS to GUI communication.
+Built as an additional node to help the ACTor GUI.
 
 Authors:
 - [Devson Butani] <dbutani@ltu.edu>
@@ -42,6 +42,7 @@ def image_callback(image_message, callback_args):
 
 
 # Start of ROS node -----------------------------------------------------------
+
 rospy.init_node("actor_gui_support", anonymous=True)
 
 bridge = CvBridge()
@@ -67,4 +68,5 @@ try:
 except rospy.ROSInterruptException:
     redis_client.close()
     pass
+
 # End of ROS node -------------------------------------------------------------

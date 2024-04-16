@@ -56,8 +56,16 @@
             respawn="true" output="screen" />
         <!-- Added simulated arg because gui does not run a ROS node to read ros params -->
 
-        <!-- Actor GUI support -->
-        <node name="actor_gui_support" pkg="actor_ros" type="actor_gui_support.py" respawn="true" />
+        <!-- ROS Board -->
+        <!-- <include file="$(find rosboard)/launch/rosboard.launch" /> -->
+        <node name="rosboard" pkg="rosboard" type="rosboard_node" output="screen">
+            <!-- If port is changed, please change it in GUI as well -->
+            <param name="port" value="8888" />
+        </node>
+
+        <!-- Actor GUI support - For now, using ROSboard -->
+        <!-- <node name="actor_gui_support" pkg="actor_ros" type="actor_gui_support.py"
+        respawn="true" /> -->
 
         <!-- .................................................................................. -->
     </group>

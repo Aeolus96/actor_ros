@@ -42,3 +42,10 @@ sudo apt-get install -y redis
 
 # ----- Make python scripts executable -----
 sudo chmod +x scripts/*.py
+
+
+# ----- Download ROSboard into .../src/ -----
+
+git clone https://github.com/dheera/rosboard.git ../rosboard
+
+catkin build actor_ros rosboard
