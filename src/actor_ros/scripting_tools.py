@@ -147,7 +147,8 @@ class ActorScriptTools:
 
     def drive(self, speed=0.0, angle=0.0) -> None:
         """Publishes a twist message to drive the vehicle.\n
-        It allows optional function-based speed and angle control.\n
+        It allows optional function-based speed and angle control.
+        Make sure the function has no arguments and returns a float.\n
         Make sure the vehicle is stopped before requesting a direction change."""
         from geometry_msgs.msg import Twist  # ROS Messages
 
@@ -179,11 +180,14 @@ class ActorScriptTools:
         speed_distance: float = None,
         gps_distance: float = None,
         duration: float = None,
-        function=None,
+        function=None,  # Make sure it is a callable object without arguments
+        *args,
+        **kwargs,
     ) -> None:
         """Publishes a twist message to drive the vehicle for a specified duration or distance.\n
         Use ONLY ONE conditional argument: speed_distance or gps_distance or duration or func.\n
-        Also supports functions as arguments, make sure to pass a callable object that returns a Bool every call.\n
+        Also supports functions as arguments, make sure to pass a callable object that returns a Bool every call.
+        Arguments are passed separately ex: drive_for(function=lidar.detect, zone="front_close", max_distance=5)\n
         Lambda functions are only evaluated once."""
 
         start_time = rospy.Time.now()
@@ -215,7 +219,7 @@ class ActorScriptTools:
             return
 
         elif callable(function):  # Use function-based end condition
-            while not rospy.is_shutdown() and not function():
+            while not rospy.is_shutdown() and not function(*args, **kwargs):
                 self.drive(speed, angle)
                 rate.sleep()
 
@@ -238,17 +242,6 @@ class ActorScriptTools:
             # if lane == "right":
             #     pass
             return self.msg_lane_center.data  # raw output from /lane_center topic
-
-    def lidar_detect(
-        self,
-        lidar_zone: str = "front_close",
-        min_distance: float = 0.1,
-        max_distance: float = 5.0,
-    ) -> bool:
-        """Uses the LiDAR zones to detect an object near the vehicle.\n
-        Returns True if an object is detected in specified zone within min_distance and max_distance."""
-
-        return eval(f"{min_distance} < self.msg_region_{lidar_zone}.data < {max_distance}")
 
     def yolo_look_for(
         self,
@@ -278,6 +271,33 @@ class ActorScriptTools:
             return self.msg_person_detected.data > 0 and self.msg_person_size.data > size
         elif pothole:
             return self.msg_pothole_detected.data > 0 and self.msg_pothole_size.data > size
+
+    def lidar_3d(
+        self,
+        lidar_zone: str = "front_closest",
+        min_distance: float = 0.1,
+        max_distance: float = 5.0,
+    ) -> bool:
+        """Uses the 3D LiDAR zones to detect an object near the vehicle.\n
+        Returns True if an object is detected in specified zone within min_distance and max_distance."""
+
+        return eval(f"{min_distance} < self.msg_region_{lidar_zone}.data < {max_distance}")
+
+    def lane_change(self, left: bool = False, right: bool = False):  # TODO
+        """Changes lane based on left and right inputs"""
+
+        if left:
+            pass
+        elif right:
+            pass
+        else:
+            pass
+
+    def gps(self, lat: float = None, long: float = None, range: float = None) -> bool:  # TODO
+        """Returns True if GPS coordinates are within the specified range"""
+
+        pass
+        return
 
     # TODO: Add methods from igvc_python but make them more Pythonic a.k.a intuitive and easy to use
 

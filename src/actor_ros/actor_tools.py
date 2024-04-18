@@ -286,6 +286,7 @@ class ScriptPlayer:
         import os
 
         self.file_list = [file for file in os.listdir(self.active_directory) if file.endswith(".py")]
+        self.file_list.sort()
         self.selected_file = ""
         return "Directory loaded"
 

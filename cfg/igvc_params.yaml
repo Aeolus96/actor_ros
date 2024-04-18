@@ -82,7 +82,7 @@ subscribers:
   - topic: /region/right_far
     msg_file: std_msgs.msg
     msg_type: Int32
-  # Tire Detection --------------------
+  # Pothole Detection --------------------
   - topic: /actor_nav/trigger
     msg_file: std_msgs.msg
     msg_type: String
@@ -116,4 +116,3 @@ subscribers:
     msg_file: geometry_msgs.msg
     msg_type: Twist
   # TODO: Add GPS topics
-  
