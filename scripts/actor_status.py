@@ -156,7 +156,7 @@ def write_to_redis(status_msg):
     """Write statuses to redis server"""
     global redis
 
-    if not redis.ping():  # Check if redis server is connected
+    if redis.ping():  # Check if redis server is connected
         # Write values to redis server
         # NOTE: Values are written to redis server as strings
         redis.set("is_simulated", str(status_msg.is_simulated))
