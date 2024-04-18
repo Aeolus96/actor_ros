@@ -65,7 +65,7 @@ class ActorScriptTools:
             rospy.Subscriber(topic, msg, callback=self.any_callback, callback_args=name, queue_size=1)
 
         self.print_highlights("IGVC Tooling Initialized")
-        
+
     def any_callback(self, msg, name):
         setattr(self, name, msg)
 
@@ -221,44 +221,63 @@ class ActorScriptTools:
 
             return
 
-    def lane_center(self, lane=None) -> float:
+    def lane_center(self, use_blob: bool = True, lane: str = None) -> float:
         """Outputs the road angle needed to center in the lane.
         Used as an input to drive functions angle argument"""
 
-        # TODO: Implement lane centering or value tuning here.
         # Expected output is the angle that the wheels should point at to center in the lane.
-        if lane == "left":
-            pass
-        if lane == "right":
-            pass
 
-        return self.msg_lane_center.data  # raw output from /lane_center topic
-    
-    def lidar_detect(self, lidar_zone=0, min_distance=0.0, max_distance: float = None) -> bool:
+        # Implement lane centering or value tuning here:
+        if use_blob:
+            blob = self.msg_blob_cmd.angular.z * 37
+            return blob
+
+        else:
+            # if lane == "left":
+            #     pass
+            # if lane == "right":
+            #     pass
+            return self.msg_lane_center.data  # raw output from /lane_center topic
+
+    def lidar_detect(
+        self,
+        lidar_zone: str = "front_close",
+        min_distance: float = 0.1,
+        max_distance: float = 5.0,
+    ) -> bool:
         """Uses the LiDAR zones to detect an object near the vehicle.\n
-        Returns True if an object is detected in specified zone within min_distance and max_distance.\n
-        Zone 0: Front of Vehicle\n
-        Zone 1: Right of Vehicle\n
-        Zone 2: Left of Vehicle"""
+        Returns True if an object is detected in specified zone within min_distance and max_distance."""
 
-        return eval(f"{min_distance} < actor.msg_lidar_zone_{lidar_zone}_closest.data < {max_distance}")
+        return eval(f"{min_distance} < self.msg_region_{lidar_zone}.data < {max_distance}")
 
-    def yolo_look_for(self, object: str = None, size: int = 0.0):
-        from std_msgs.msg import String
-        """Prompts Route-YOLO to begin looking for a specified object.\n
+    def yolo_look_for(
+        self,
+        stop_sign: bool = False,
+        tire: bool = False,
+        person: bool = False,
+        pothole: bool = False,
+        size: int = 0.0,
+    ):
+        """Prompts Route-YOLO to look for a specified object.\n
+        This runs only once. At least one object class should be set to True.\n
         Returns whether an object was found with a size larger than param 'size'.\n
-        Objects Available: tire, stop, person"""
+        Objects Available: stop_sign, tire, person, pothole"""
+
+        from std_msgs.msg import String
 
         msg_string = String()
         msg_string.data = object
         self.pub_yolo.publish(msg_string)
 
-        if(object in "stopsign"):
-            return actor.msg_stop_sign_detected.data > 0 and actor.msg_stop_sign_size.data > size
-        if(object in "tires"):
-            return actor.msg_tire_detected.data > 0 and actor.msg_tire_size.data > size
-        if(object in "person"):
-            return actor.msg_person_detected.data > 0 and actor.msg_person_size.data > size
+        # Check quantity of object found and size of object
+        if stop_sign:
+            return self.msg_stop_sign_detected.data > 0 and self.msg_stop_sign_size.data > size
+        elif tire:
+            return self.msg_tire_detected.data > 0 and self.msg_tire_size.data > size
+        elif person:
+            return self.msg_person_detected.data > 0 and self.msg_person_size.data > size
+        elif pothole:
+            return self.msg_pothole_detected.data > 0 and self.msg_pothole_size.data > size
 
     # TODO: Add methods from igvc_python but make them more Pythonic a.k.a intuitive and easy to use
 

@@ -4,14 +4,16 @@
     <arg name="carla" default="false" />
 
 
-    <!-- Adding external ROS packages using separate launch files. Makes it easy to update .... -->
+    <!-- Adding external ROS packages using SEPARATE LAUNCH FILES ............................. -->
+    <!-- Makes it easy to update on the fly for each method -->
+    <!-- These take priority in the launch order as actor_ros will pub/sub to these -->
     <group if="$(arg simulated)">
-        <!-- Load the Simulation/Carla related launch file -->
         <group if="$(arg carla)">
-            <!-- TODO: Add support for CARLA -->
+            <!-- TODO: Add support for CARLA here... -->
             <include file="$(find actor_ros)/launch/support_carla.launch" />
         </group>
         <group unless="$(arg carla)">
+            <!-- Load the Simple Sim related launch file -->
             <include file="$(find actor_ros)/launch/support_sim.launch" />
         </group>
     </group>
@@ -21,17 +23,21 @@
     </group>
 
 
-    <!-- Launch groups under the global namespace '/actor' .................................... -->
+    <!-- Launch under the global namespace '/actor' ........................................... -->
     <group ns="/actor">
 
-        <!-- Load Environment related variables -->
+        <!-- Parameter used to determine simulation mode from other nodes -->
+        <param name="is_simulated" value="$(arg simulated)" />
+        <param name="is_carla" value="$(arg carla)" />
+
+        <!-- Load Environment related parameters from YAML files -->
         <group if="$(arg simulated)">
-            <!-- Load the Simulation/Carla related YAML file -->
             <group if="$(arg carla)">
-                <!-- TODO: Add support for CARLA -->
+                <!-- TODO: Add support for CARLA here... -->
                 <rosparam command="load" file="$(find actor_ros)/cfg/topics_carla.yaml" />
             </group>
             <group unless="$(arg carla)">
+                <!-- Load the Simple Sim related YAML file -->
                 <rosparam command="load" file="$(find actor_ros)/cfg/topics_simulator.yaml" />
             </group>
         </group>
@@ -39,12 +45,10 @@
             <!-- Load the Real vehicle related YAML file -->
             <rosparam command="load" file="$(find actor_ros)/cfg/topics_real.yaml" />
         </group>
-        <!-- ................................ -->
+        <!-- .................................................................................. -->
 
-        <!-- Parameter used to determine simulation mode from other nodes -->
-        <param name="is_simulated" value="$(arg simulated)" />
-        <param name="is_carla" value="$(arg carla)" />
 
+        <!-- actor_ros specific nodes ......................................................... -->
         <!-- Actor Status -->
         <node name="actor_status" pkg="actor_ros" type="actor_status.py" respawn="true" />
 
@@ -63,12 +67,15 @@
             <param name="port" value="8888" />
         </node>
 
-        <!-- Actor GUI support - For now, using ROSboard -->
+        <!-- Actor GUI support - using ROSboard instead -->
         <!-- <node name="actor_gui_support" pkg="actor_ros" type="actor_gui_support.py"
         respawn="true" /> -->
-
         <!-- .................................................................................. -->
+
     </group>
     <!-- ^^ End of /actor namespace ^^ ........................................................ -->
+
+    <!-- NOTE: Do NOT add any other nodes here unless it is absolutely necessary -->
+    <!-- Use the support_*.launch files to add support nodes for the respective environment -->
 
 </launch>

@@ -44,8 +44,22 @@ sudo apt-get install -y redis
 sudo chmod +x scripts/*.py
 
 
-# ----- Download ROSboard into .../src/ -----
+# ----- Clone repositories and install -----
 
-git clone https://github.com/dheera/rosboard.git ../rosboard
+declare -A repositories=(
+    ["../rosboard"]="https://github.com/dheera/rosboard.git"
+    # Add more repositories as needed
+)
+
+# Iterate over each repository and check if it already exists
+for repo_dir in "${!repositories[@]}"; do
+    repo_url=${repositories["$repo_dir"]}
+    
+    if [ -d "$repo_dir" ]; then
+        echo "Repository directory $repo_dir already exists. Skipping cloning."
+    else
+        git clone "$repo_url" "$repo_dir"
+    fi
+done
 
 catkin build actor_ros rosboard

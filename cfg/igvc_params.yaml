@@ -21,7 +21,7 @@ publishers:
     msg_type: String
 
 subscribers:
-  # Lane Center -----------------------
+  # Lane Center for simulator -----------------------
   - topic: /lane_center
     msg_file: std_msgs.msg
     msg_type: Float32
@@ -31,7 +31,7 @@ subscribers:
   - topic: /lane_center_right_lane
     msg_file: std_msgs.msg
     msg_type: Bool
-  # Lidar -----------------------------
+  # Lidar Zones for simulator ---------------------
   - topic: /lidar_zone_0_closest
     msg_file: std_msgs.msg
     msg_type: Float32
@@ -41,19 +41,47 @@ subscribers:
   - topic: /lidar_zone_2_closest
     msg_file: std_msgs.msg
     msg_type: Float32
-  # Simulator Stop Sign Detection -----
+  # Simulator Stop Sign Detection for simulator -----
   - topic: /stop_sign_dectected
     # yes, it is dectected in the simulator
     msg_file: std_msgs.msg
     msg_type: UInt8
-  # Barrel Detection ------------------
+  # Barrel Detection for simulator ------------------
   - topic: /detect_barrel_vision
     msg_file: std_msgs.msg
     msg_type: Bool
-  # Road Object Detection -------------
+  # Road Object Detection for simulator -------------
   - topic: /detect_road_obj
     msg_file: std_msgs.msg
     msg_type: Bool
+  # Lidar Zones -----------------------------
+  - topic: /region/front_close
+    msg_file: std_msgs.msg
+    msg_type: Int32
+  - topic: /region/front_closest
+    msg_file: std_msgs.msg
+    msg_type: Int32
+  - topic: /region/front_far
+    msg_file: std_msgs.msg
+    msg_type: Int32
+  - topic: /region/left_close
+    msg_file: std_msgs.msg
+    msg_type: Int32
+  - topic: /region/left_closest
+    msg_file: std_msgs.msg
+    msg_type: Int32
+  - topic: /region/left_far
+    msg_file: std_msgs.msg
+    msg_type: Int32
+  - topic: /region/right_close
+    msg_file: std_msgs.msg
+    msg_type: Int32
+  - topic: /region/right_closest
+    msg_file: std_msgs.msg
+    msg_type: Int32
+  - topic: /region/right_far
+    msg_file: std_msgs.msg
+    msg_type: Int32
   # Tire Detection --------------------
   - topic: /actor_nav/trigger
     msg_file: std_msgs.msg
@@ -77,3 +105,15 @@ subscribers:
   - topic: /person_size
     msg_file: std_msgs.msg
     msg_type: UInt32
+  - topic: /pothole_detected
+    msg_file: std_msgs.msg
+    msg_type: UInt8
+  - topic: /pothole_size
+    msg_file: std_msgs.msg
+    msg_type: UInt32
+  # Blob Lane Follow
+  - topic: /blob/cmd
+    msg_file: geometry_msgs.msg
+    msg_type: Twist
+  # TODO: Add GPS topics
+  

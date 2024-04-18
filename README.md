@@ -6,7 +6,9 @@ This package enables abstraction of the LTU ACTor autonomous development vehicle
 
 - ROS Noetic
 - [`dbw_polaris_msgs`](https://bitbucket.org/DataspeedInc/dbw_polaris_ros/src/master/ROS_SETUP.md): ROS messages for controlling a DataSeed Drive-By-Wire system installed in ACTor.
-    > Needs to be installed manually
+    > This external package needs to be installed manually
+- ACTor computer/laptop setup using [ACTOR setup](https://github.com/LTU-Actor/setup.git)
+    > Only need if setting up the ACTor computer/laptop for the first time
 
 ## Installation
 
@@ -54,6 +56,8 @@ roslaunch actor_ros actor.launch
 # OR Launch with simulated environment
 roslaunch actor_ros actor.launch simulated:=true
 ```
+
+> Please make sure the IP addresses are correct between the two ACTor vehicles in the `support_real.launch` file
 
 ## Contributing
 

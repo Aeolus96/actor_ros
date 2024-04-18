@@ -1,10 +1,14 @@
 <launch>
 
-    <!-- rqt_reconfigure aka Dynamic Reconfigure GUI -->
+    <!-- rqt_reconfigure aka Dynamic Reconfigure GUI .......................-->
     <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_console" args="-t" />
+    <!-- .................................................................. -->
+
 
     <!-- DataSpeed DBW .....................................................-->
     <include file="$(find dbw_polaris_can)/launch/dbw.launch" />
+    <!-- .................................................................. -->
+
 
     <!-- Mako G319C Global Shutter Camera ..................................-->
     <include file="$(find avt_vimba_camera)/launch/mono_camera.launch">
@@ -12,18 +16,156 @@
         <!-- <arg name="ip" value="192.168.0.40" /> -->
         <!-- ACTor 2 Mako Camera IP -->
         <arg name="ip" value="192.168.60.40" />
+        <!-- Other Arguments, modify if needed -->
+        <!-- <arg name="guid" value="50-0536910784" />
+        <arg name="frame_id" value="" />
+        <arg name="acquisition_mode" value="Continuous" />
+        <arg name="acquisition_rate" value="14.98" />
+        <arg name="exposure" value="4000" />
+        <arg name="exposure_auto" value="" />
+        <arg name="gain" value="24" />
+        <arg name="gain_auto" value="Continuous" />
+        <arg name="height" value="770" />
+        <arg name="width" value="1030" />
+        <arg name="pixel_format" value="RGB8Packed" />
+        <arg name="whitebalance_auto" value="Continuous" />
+        <arg name="binning_x" value="2" />
+        <arg name="decimation_y" value="2" /> -->
     </include>
+    <!-- .................................................................. -->
+
+
+    <!-- USB Camera: Starvis 1 Arducam - using Simple Camera Publisher .....-->
+    <node name="cam_pub" pkg="simple_camera_publisher" type="cam_pub" respawn="true"
+        respawn_delay="10"
+        output="screen">
+        <!-- Use device path from /dev/v4l/by-id/ -->
+        <param name="source" type="string"
+            value="/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._USB_2.0_Camera_SN0001-video-index0" />
+    </node>
+    <!-- .................................................................. -->
+
+
+    <!-- Piksi Multi GPS ...................................................-->
+    <group ns="reference">
+        <include file="$(find piksi_multi_cpp)/launch/rover.launch">
+            <!-- ACTor 1 Piksi IP -->
+            <!-- <arg name="device_ids" value="tcp://192.168.0.222:55555" /> -->
+            <!-- ACTor 2 Piksi IP -->
+            <arg name="device_ids" value="tcp://192.168.60.222:55555" />
+        </include>
+    </group>
+
+    <group ns="attitude">
+        <include file="$(find piksi_multi_cpp)/launch/rover.launch">
+            <!-- ACTor 1 Piksi IP -->
+            <!-- <arg name="device_ids" value="tcp://192.168.0.223:55555" /> -->
+            <!-- ACTor 2 Piksi IP -->
+            <arg name="device_ids" value="tcp://192.168.60.223:55555" />
+        </include>
+    </group>
+    <!-- .................................................................. -->
+
 
     <!-- Velodyne VLP-16 3D LiDAR ..........................................-->
     <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch" />
+    <!-- .................................................................. -->
+
+
+    <!-- 2D LiDAR ..........................................................-->
+    <group>
+        <remap from="/scan" to="/tiny_scan" />
+        <include file="$(find actor_lidar)/launch/tiny_lidar.launch" />
+    </group>
+    <!-- .................................................................. -->
+
+
+    <!-- Route-Waypoint ....................................................-->
+    <include file="$(find ltu_actor_route_waypoint)/launch/waypoint.launch">
+        <arg name="accumulate" value="0.0" />
+        <arg name="mult_accumulate" value="0.0" />
+        <arg name="mult" value="0.5" />
+        <arg name="speed" value="1.5" />
+        <arg name="reverse" value="false" />
+        <arg name="gps_fix" value="/reference/rover/piksi/position_receiver_0/sbp/pos_llh" />
+        <arg name="gps_vel_ned" value="/reference/rover/piksi/position_receiver_0/ros/vel_ned" />
+        <arg name="gps_state" value="/reference/rover/piksi/position_receiver_0/ros/receiver_state" />
+    </include>
+    <!-- .................................................................. -->
+
+
+    <!-- Route-Obstacle ....................................................-->
+    <node pkg="ltu_actor_route_obstacle" type="region" name="region" output="screen">
+        <param name="sub_topic" value="/velodyne_points" />
+        <param name="right_close_originX" value="-2.4" />
+        <param name="right_close_originY" value="-2.6" />
+        <param name="right_close_width" value="1.8" />
+        <param name="right_close_length" value="10.2" />
+        <param name="right_close_z_min" value="-1.25" />
+        <param name="right_close_z_max" value="0.0" />
+        <param name="front_far_length" value="12.0" />
+        <param name="left_far_width" value="3.2" />
+        <param name="left_far_originY" value="0.65" />
+        <param name="right_far_originY" value="-1.5" />
+    </node>
+    <!-- .................................................................. -->
+
 
     <!-- Route-YoloV8 ......................................................-->
     <include file="$(find ltu_actor_route_yolov8_detector)/launch/yolov8_detector.launch">
         <!-- Input Image Topic -->
-        <param name="imgtopic_name" type="string" value="/camera/image_raw" />
+        <param name="imgtopic_name" type="string" value="/cam_pub/image_raw" />
         <!-- <param name="imgtopic_name" type="string" value="/ip_camera/image_raw" /> -->
     </include>
+    <!-- .................................................................. -->
+
+
+    <!-- Route-Blob ........................................................-->
+    <node pkg="ltu_actor_route_blob" type="blob" name="blob">
+        <param name="input" type="string" value="/cam_pub/image_raw" />
+        <!-- Pre-set values -->
+        <!-- Change in dynamic reconfigure and then save .yaml to edit this later -->
+        <param name="enable_drive" type="bool" value="true" />
+        <param name="enable_forward" type="bool" value="true" />
+        <param name="drive_speed" type="double" value="1.5" />
+        <param name="edge_method" type="int" value="2" />
+        <param name="canny_lower_thresh" type="int" value="700" />
+        <param name="canny_upper_thresh" type="int" value="2000" />
+        <param name="canny_aperture_size" type="int" value="2" />
+        <param name="adap_use_gauss" type="bool" value="true" />
+        <param name="adap_block_size" type="int" value="3" />
+        <param name="adap_c" type="double" value="-15.3" />
+        <param name="lapla_ksize" type="int" value="2" />
+        <param name="sobel_xorder" type="int" value="1" />
+        <param name="sobel_yorder" type="int" value="1" />
+        <param name="sobel_ksize" type="int" value="1" />
+        <param name="enhance_blur" type="int" value="4" />
+        <param name="blob_y" type="double" value="0.95" />
+        <param name="blob_x" type="double" value="0.5" />
+        <param name="blob_coeff" type="double" value="0.1" />
+        <param name="blob_len" type="double" value="1.0" />
+        <param name="blob_num_points" type="int" value="50" />
+        <param name="blob_median_blur_size" type="int" value="30" />
+        <param name="blob_dilation_size" type="int" value="10" />
+        <param name="blob_mult" type="double" value="3.0" />
+        <param name="blob_max_p_y" type="double" value="0.7" />
+        <param name="lines_enable" type="bool" value="true" />
+        <param name="lines_thresh" type="int" value="80" />
+        <param name="lines_rho" type="int" value="1" />
+        <param name="lines_min_len" type="int" value="30" />
+        <param name="lines_max_gap" type="int" value="5" />
+        <param name="lines_top" type="double" value="0.2" />
+        <param name="lines_min_slope" type="double" value="0.2" />
+        <param name="show_edge_detect" type="bool" value="false" />
+        <param name="show_result" type="bool" value="false" />
+        <param name="show_blob" type="bool" value="false" />
+        <param name="show_lines" type="bool" value="false" />
+    </node>
+    <!-- .................................................................. -->
+
 
     <!-- TODO: Add other packages here -->
+    <!-- Package Name ..................................................... -->
+    <!-- .................................................................. -->
 
 </launch>
