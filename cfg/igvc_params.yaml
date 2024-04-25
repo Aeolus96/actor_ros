@@ -57,31 +57,31 @@ subscribers:
   # Lidar Zones -----------------------------
   - topic: /region/front_close
     msg_file: std_msgs.msg
-    msg_type: Int32
+    msg_type: Float64
   - topic: /region/front_closest
     msg_file: std_msgs.msg
-    msg_type: Int32
+    msg_type: Float64
   - topic: /region/front_far
     msg_file: std_msgs.msg
-    msg_type: Int32
+    msg_type: Float64
   - topic: /region/left_close
     msg_file: std_msgs.msg
-    msg_type: Int32
+    msg_type: Float64
   - topic: /region/left_closest
     msg_file: std_msgs.msg
-    msg_type: Int32
+    msg_type: Float64
   - topic: /region/left_far
     msg_file: std_msgs.msg
-    msg_type: Int32
+    msg_type: Float64
   - topic: /region/right_close
     msg_file: std_msgs.msg
-    msg_type: Int32
+    msg_type: Float64
   - topic: /region/right_closest
     msg_file: std_msgs.msg
-    msg_type: Int32
+    msg_type: Float64
   - topic: /region/right_far
     msg_file: std_msgs.msg
-    msg_type: Int32
+    msg_type: Float64
   # Pothole Detection --------------------
   - topic: /actor_nav/trigger
     msg_file: std_msgs.msg

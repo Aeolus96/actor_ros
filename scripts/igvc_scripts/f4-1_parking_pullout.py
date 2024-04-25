@@ -39,11 +39,11 @@ actor.print_title("F4.1 Parking Pull Out")
 
 estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
-actor.drive_for(speed=0.7, angle=0.0, duration=0.7)
+actor.drive_for(speed=1.5, angle=0.0, speed_distance=2)
 
-actor.drive_for(speed=0.7, angle=-9.0, duration=7.5)
+actor.drive_for(speed=1.5, angle=-37.0, speed_distance=6)
 
-actor.drive_for(speed=0.7, angle=0.0, duration=0.4)
+#actor.drive_for(speed=1.5, angle=0.0, duration=0.4)
 
 actor.stop_vehicle(duration=5.0)
 

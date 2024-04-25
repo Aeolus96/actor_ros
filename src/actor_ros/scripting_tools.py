@@ -225,7 +225,7 @@ class ActorScriptTools:
 
             return
 
-    def lane_center(self, use_blob: bool = True, lane: str = None) -> float:
+    def lane_center(self, use_blob: bool = True, blob_gain: float = 45.0, lane: str = None) -> float:
         """Outputs the road angle needed to center in the lane.
         Used as an input to drive functions angle argument"""
 
@@ -233,8 +233,7 @@ class ActorScriptTools:
 
         # Implement lane centering or value tuning here:
         if use_blob:
-            blob = self.msg_blob_cmd.angular.z * 37
-            return blob
+            return self.msg_blob_cmd.angular.z * blob_gain
 
         else:
             # if lane == "left":
@@ -259,7 +258,16 @@ class ActorScriptTools:
         from std_msgs.msg import String
 
         msg_string = String()
-        msg_string.data = object
+        if stop_sign:
+            msg_string.data = "stop sign"
+        elif tire:
+            msg_string.data = "tire"
+        elif person:
+            msg_string.data = "person"
+        elif pothole:
+            msg_string.data = "pothole"
+        else:
+            raise ("Not correct object type")
         self.pub_yolo.publish(msg_string)
 
         # Check quantity of object found and size of object

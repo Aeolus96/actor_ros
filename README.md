@@ -31,7 +31,7 @@ cd <path_to_your_catkin_ws>/src/actor_ros
 # IMPORTANT: Make sure you are inside the actor_ros directory before running the install script
 
 # Set executable permissions and Run the install script
-chmod +x ./install.sh
+chmod +x install.sh
 ./install.sh
 ```
 
