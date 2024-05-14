@@ -1,5 +1,9 @@
 <launch>
 
+    <!-- actor_estop ...................................................... -->
+    <!-- <include file="$(find actor_estop)/launch/core.launch" /> -->
+    <!-- .................................................................. -->
+
     <!-- rqt_reconfigure aka Dynamic Reconfigure GUI .......................-->
     <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_console" args="-t" />
     <!-- .................................................................. -->
@@ -11,13 +15,13 @@
 
 
     <!-- Mako G319C Global Shutter Camera ..................................-->
-    <include file="$(find avt_vimba_camera)/launch/mono_camera.launch">
-        <!-- ACTor 1 Mako Camera IP -->
-        <!-- <arg name="ip" value="192.168.0.40" /> -->
-        <!-- ACTor 2 Mako Camera IP -->
-        <arg name="ip" value="192.168.60.40" />
-        <!-- Other Arguments, modify if needed -->
-        <!-- <arg name="guid" value="50-0536910784" />
+    <!-- <include file="$(find avt_vimba_camera)/launch/mono_camera.launch"> -->
+    <!-- ACTor 1 Mako Camera IP -->
+    <!-- <arg name="ip" value="192.168.0.40" /> -->
+    <!-- ACTor 2 Mako Camera IP -->
+    <!-- <arg name="ip" value="192.168.60.40" /> -->
+    <!-- Other Arguments, modify if needed -->
+    <!-- <arg name="guid" value="50-0536910784" />
         <arg name="frame_id" value="" />
         <arg name="acquisition_mode" value="Continuous" />
         <arg name="acquisition_rate" value="14.98" />
@@ -31,7 +35,7 @@
         <arg name="whitebalance_auto" value="Continuous" />
         <arg name="binning_x" value="2" />
         <arg name="decimation_y" value="2" /> -->
-    </include>
+    <!-- </include> -->
     <!-- .................................................................. -->
 
 
@@ -47,37 +51,38 @@
 
 
     <!-- Piksi Multi GPS ...................................................-->
-    <!-- <group ns="reference">
-        <include file="$(find piksi_multi_cpp)/launch/rover.launch"> -->
+    <group ns="reference">
+        <include file="$(find piksi_multi_cpp)/launch/rover.launch">
             <!-- ACTor 1 Piksi IP -->
-            <!-- <arg name="device_ids" value="tcp://192.168.0.222:55555" /> -->
+            <arg name="device_ids" value="tcp://192.168.0.222:55555" />
             <!-- ACTor 2 Piksi IP -->
-            <!-- <arg name="device_ids" value="tcp://192.168.60.223:55555" />
+            <!-- <arg name="device_ids" value="tcp://192.168.60.30:55555" /> -->
         </include>
     </group>
 
     <group ns="attitude">
-        <include file="$(find piksi_multi_cpp)/launch/rover.launch"> -->
+        <include file="$(find piksi_multi_cpp)/launch/rover.launch">
             <!-- ACTor 1 Piksi IP -->
-            <!-- <arg name="device_ids" value="tcp://192.168.0.223:55555" /> -->
+            <arg name="device_ids" value="tcp://192.168.0.223:55555" />
             <!-- ACTor 2 Piksi IP -->
-            <!-- <arg name="device_ids" value="tcp://192.168.60.223:55555" />
+            <!-- <arg name="device_ids" value="tcp://192.168.60.31:55555" /> -->
         </include>
-    </group> -->
+    </group>
     <!-- .................................................................. -->
 
 
     <!-- Velodyne VLP-16 3D LiDAR ..........................................-->
-    <node pkg="tf2_ros" type="static_transform_publisher" name="link_broadcaster" args="0 0 0 0 0 0 1 velodyne near_field" />
+    <node pkg="tf2_ros" type="static_transform_publisher" name="link_broadcaster"
+        args="0 0 0 0 0 0 0 velodyne 3d_lidar" />
     <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch" />
     <!-- .................................................................. -->
 
 
     <!-- 2D LiDAR ..........................................................-->
-    <!-- <group>
+    <group>
         <remap from="/scan" to="/tiny_scan" />
         <include file="$(find actor_lidar)/launch/tiny_lidar.launch" />
-    </group> -->
+    </group>
     <!-- .................................................................. -->
 
 
@@ -114,9 +119,10 @@
 
     <!-- Route-YoloV8 ......................................................-->
     <include file="$(find ltu_actor_route_yolov8_detector)/launch/yolov8_detector.launch">
-        <!-- Input Image Topic -->
+        <!-- Input Image Topic: USB Camera -->
         <param name="imgtopic_name" type="string" value="/cam_pub/image_raw" />
-        <!-- <param name="imgtopic_name" type="string" value="/ip_camera/image_raw" /> -->
+        <!-- Input Image Topic: PoE Camera -->
+        <!-- <param name="imgtopic_name" type="string" value="/route_cam_pub/image_raw" /> -->
     </include>
     <!-- .................................................................. -->
 
