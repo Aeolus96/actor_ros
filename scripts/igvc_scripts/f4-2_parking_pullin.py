@@ -31,8 +31,6 @@ actor = actor_ros.scripting_tools.ActorScriptTools()  # ACTor Scripting Tools in
 # ---------------------------------------------------------------------------------------------------------------------
 # ---------------------------------------------------------------------------------------------------------------------
 
-# TODO: Add your code from here
-
 actor.print_title("F4.2 Parking Pull In")
 
 #actor.print_highlights("Go Forward")
@@ -41,7 +39,7 @@ estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
 actor.drive_for(speed=1.5, angle=0.0, speed_distance=2)
 
-actor.drive_for(speed=1.5, angle=-37.0, speed_distance=6)
+actor.drive_for(speed=1.5, angle=-36.0, speed_distance=7)
 
 actor.drive_for(speed=1.5, angle=0.0, speed_distance=2.0)
 

@@ -100,7 +100,7 @@ class ActorScriptTools:
             msg.enable = True
 
             # Reach target pedal value by increasing pedal value for duration seconds
-            brake_target = 0.2  # target brake pedal value
+            brake_target = 0.4  # target brake pedal value
             increment = (duration * rate_hz) / brake_target
 
             while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
