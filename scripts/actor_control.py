@@ -74,7 +74,7 @@ def publish_vehicle_controls(TimerEvent) -> None:
     # NOTE: If needed, enable everytime. Usually not needed to prevent re-enabling after an error or override
     # enable_dbw()
 
-    if sim is not None:  # Simply pass along the twist message
+    if sim_topic is not None or bypass_topic is not None:  # Simply pass along the twist message
         pub_twist.publish(msg_twist_buffer)
     else:
         # Speed -------------------------------------------------------------------
@@ -224,9 +224,12 @@ rospy.Timer(rospy.Duration(1 / config_.control_rate_hz), publish_vehicle_control
 actor = actor_tools.ActorStatusReader()
 
 # Define publishers
-sim = rospy.get_param("sim_input", None)
-if sim is not None:
-    pub_twist = rospy.Publisher(sim, Twist, queue_size=1)
+sim_topic = rospy.get_param("sim_input", None)  # Used for sending twist messages to simulator topic
+bypass_topic = rospy.get_param("cmd_vel", None)  # Used for sending direct twist messages to real vehicle
+if sim_topic is not None:
+    pub_twist = rospy.Publisher(sim_topic, Twist, queue_size=1)
+elif bypass_topic is not None:
+    pub_twist = rospy.Publisher(bypass_topic, Twist, queue_size=1)
 else:
     pub_steering = rospy.Publisher(rospy.get_param("steering"), SteeringCmd, queue_size=1)
     pub_enable_cmd = rospy.Publisher(rospy.get_param("enable"), Empty, queue_size=1)

@@ -11,6 +11,9 @@ disable: /vehicle/disable
 gear: /vehicle/gear_cmd
 ulc: /vehicle/ulc_cmd
 
+# Note: Uncomment if you want to directly publish Twist to vehicle (bypassing the native steering and pedal controls)
+# cmd_vel: /vehicle/cmd_vel
+
 # Sensors this node subscribes to (published by vehicle)
 report_accelerator: /vehicle/throttle_report
 report_brakes: /vehicle/brake_report
