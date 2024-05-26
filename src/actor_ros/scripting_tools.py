@@ -100,7 +100,7 @@ class ActorScriptTools:
             msg.enable = True
 
             # Reach target pedal value by increasing pedal value for duration seconds
-            brake_target = 0.2  # target brake pedal value
+            brake_target = 0.4  # target brake pedal value
             increment = (duration * rate_hz) / brake_target
 
             while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
@@ -310,3 +310,68 @@ class ActorScriptTools:
     # TODO: Add methods from igvc_python but make them more Pythonic a.k.a intuitive and easy to use
 
     # End of Class ----------------------------------------------------------------------------------------------------
+
+
+class Waypoint:
+    """Class for waypoint lat and long operations"""
+
+    def __init__(self, lat: float = None, long: float = None) -> None:
+        """Sets waypoint lat and long (decimal degrees)"""
+        self.lat = lat
+        self.long = long
+        self.current_heading = None
+
+    def __str__(self) -> str:
+        return f"Waypoint: {self.lat:.6f}, {self.long:.6f}"
+
+    def update(self, lat: float, long: float) -> None:
+        """Sets waypoint lat and long (decimal degrees)"""
+
+        new_waypoint = Waypoint(lat, long)  # Make new waypoint
+
+        # Update current heading to waypoint if within 100m
+        if self.distance_to(new_waypoint) < 100:
+            self.current_heading = self.bearing_with(new_waypoint)
+        else:
+            self.current_heading = None
+
+        # Update current waypoint to latest values
+        self.lat = lat
+        self.long = long
+
+    def distance_to(self, goal: "Waypoint") -> float:
+        """Returns Haversine distance between two waypoints in meters"""
+
+        from math import sin, cos, sqrt, asin, radians
+
+        radius_earth = 6371000  # meters
+
+        phi_1 = radians(self.lat)
+        lambda_1 = radians(self.long)
+        phi_2 = radians(goal.lat)
+        lambda_2 = radians(goal.long)
+
+        delta_lambda = lambda_2 - lambda_1
+        delta_phi = phi_2 - phi_1
+
+        # Haversine formula
+        a = sin(delta_phi / 2) ** 2 + cos(phi_1) * cos(phi_2) * sin(delta_lambda / 2) ** 2
+
+        return 2 * radius_earth * asin(sqrt(a))
+
+    def bearing_with(self, goal: "Waypoint") -> float:
+        """Returns bearing between two waypoints in degrees"""
+
+        from math import sin, cos, atan2, radians, degrees
+
+        phi_1 = radians(self.lat)
+        lambda_1 = radians(self.long)
+        phi_2 = radians(goal.lat)
+        lambda_2 = radians(goal.long)
+
+        delta_lambda = lambda_2 - lambda_1
+
+        x = sin(delta_lambda) * cos(phi_2)
+        y = cos(phi_1) * sin(phi_2) - sin(phi_1) * cos(phi_2) * cos(delta_lambda)
+
+        return (degrees(atan2(x, y)) + 360) % 360

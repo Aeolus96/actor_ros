@@ -31,8 +31,6 @@ actor = actor_ros.scripting_tools.ActorScriptTools()  # ACTor Scripting Tools in
 # ---------------------------------------------------------------------------------------------------------------------
 # ---------------------------------------------------------------------------------------------------------------------
 
-# TODO: Add your code from here
-
 actor.print_title("F4.3 Parallel Parking")
 
 #actor.print_highlights("Go Forward")
@@ -41,13 +39,13 @@ estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
 actor.shift_gear("REVERSE")
 
-actor.drive_for(speed=-0.5, angle=0.0, duration=-1.0)
+actor.drive_for(speed=-2.0, angle=0.0, speed_distance=0.5)
 
-actor.drive_for(speed=-0.5, angle=-6.0, duration=-4.0)
+actor.drive_for(speed=-2.0, angle=-36.0, speed_distance=3.0)
 
-actor.drive_for(speed=-0.5, angle=0.0, duration=-1.8)
+actor.drive_for(speed=-2.0, angle=34.0, speed_distance=6.2)
 
-actor.drive_for(speed=-0.5, angle=0.0, duration=-1.4)
+actor.drive_for(speed=-2.0, angle=0.0, speed_distance=0.1)
 
 actor.shift_gear("DRIVE")
 

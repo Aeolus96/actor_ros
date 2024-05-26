@@ -72,16 +72,29 @@
 
 
     <!-- Velodyne VLP-16 3D LiDAR ..........................................-->
-    <node pkg="tf2_ros" type="static_transform_publisher" name="link_broadcaster"
-        args="0 0 0 0 0 0 0 velodyne 3d_lidar" />
-    <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch" />
+    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="link_broadcaster"
+        args="0 0 0 0 0 0 0 velodyne 3d_lidar" /> -->
+    <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch">
+        <arg name="frame_id" value="top_3d_lidar" />
+    </include>
     <!-- .................................................................. -->
 
 
     <!-- 2D LiDAR ..........................................................-->
-    <group>
-        <remap from="/scan" to="/tiny_scan" />
-        <include file="$(find actor_lidar)/launch/tiny_lidar.launch" />
+    <!-- TODO: Link device ports with hardware IDs in udev rules -->
+    <!-- Front LiDAR -->
+    <group ns="front_2d_lidar">
+        <node name="urg_node" pkg="urg_node" type="urg_node" output="screen">
+            <param name="serial_port" value="/dev/ttyACM0" />
+            <param name="frame_id" value="front_2d_lidar" />
+        </node>
+    </group>
+    <!-- Rear LiDAR -->
+    <group ns="rear_2d_lidar">
+        <node name="urg_node" pkg="urg_node" type="urg_node" output="screen">
+            <param name="serial_port" value="/dev/ttyACM1" />
+            <param name="frame_id" value="rear_2d_lidar" />
+        </node>
     </group>
     <!-- .................................................................. -->
 
