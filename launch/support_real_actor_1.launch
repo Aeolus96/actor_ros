@@ -1,7 +1,11 @@
 <launch>
 
     <!-- actor_estop ...................................................... -->
-    <!-- <include file="$(find actor_estop)/launch/core.launch" /> -->
+    <include file="$(find actor_estop)/launch/core.launch" />
+    <!-- .................................................................. -->
+
+    <!-- actor_description ................................................ -->
+    <include file="$(find actor_description)/launch/actor_description.launch" />
     <!-- .................................................................. -->
 
     <!-- rqt_reconfigure aka Dynamic Reconfigure GUI .......................-->
@@ -10,7 +14,9 @@
 
 
     <!-- DataSpeed DBW .....................................................-->
-    <include file="$(find dbw_polaris_can)/launch/dbw.launch" />
+    <include file="$(find dbw_polaris_can)/launch/dbw.launch" >
+        <arg name="load_urdf" value="false" />
+    </include>
     <!-- .................................................................. -->
 
 
@@ -93,27 +99,18 @@
         <arg name="mult" value="0.5" />
         <arg name="speed" value="1.5" />
         <arg name="reverse" value="false" />
-        <arg name="gps_fix" value="/reference/rover/piksi/position_receiver_0/sbp/pos_llh" />
-        <arg name="gps_vel_ned" value="/reference/rover/piksi/position_receiver_0/ros/vel_ned" />
-        <arg name="gps_state" value="/reference/rover/piksi/position_receiver_0/ros/receiver_state" />
+        <arg name="gps_fix" value="/actor/fix" />
+        <arg name="gps_vel_ned" value="/reference/piksi/position_receiver_0/ros/vel_ned" />
+        <arg name="gps_state" value="/reference/piksi/position_receiver_0/ros/receiver_state" />
     </include>
-    <!-- TODO: Verify the topics -->
     <!-- .................................................................. -->
 
 
     <!-- Route-Obstacle ....................................................-->
     <node pkg="ltu_actor_route_obstacle" type="region" name="region" output="screen">
+        <param name="frame_id" value="top_3d_lidar" />
         <param name="sub_topic" value="/velodyne_points" />
-        <param name="right_close_originX" value="-2.4" />
-        <param name="right_close_originY" value="-2.6" />
-        <param name="right_close_width" value="1.8" />
-        <param name="right_close_length" value="10.2" />
-        <param name="right_close_z_min" value="-1.25" />
-        <param name="right_close_z_max" value="0.0" />
-        <param name="front_far_length" value="12.0" />
-        <param name="left_far_width" value="3.2" />
-        <param name="left_far_originY" value="0.65" />
-        <param name="right_far_originY" value="-1.5" />
+
     </node>
     <!-- TODO: Verify the regions -->
     <!-- .................................................................. -->

@@ -20,6 +20,8 @@ report_brakes: /vehicle/brake_report
 report_steering: /vehicle/steering_report
 report_gear: /vehicle/gear_report
 enabled: /vehicle/dbw_enabled
+gps_position: /reference/piksi/position_receiver_0/sbp/pos_llh
+gps_heading: /attitude/piksi/attitude_receiver_0/sbp/baseline_heading
 
 # All vehicle control related topics go here (publish messages here to control ACTor)
 drive: /actor/cmd_vel

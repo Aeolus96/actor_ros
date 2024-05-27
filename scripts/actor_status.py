@@ -35,6 +35,9 @@ from dbw_polaris_msgs.msg import (
 )
 from geometry_msgs.msg import Twist  # ROS Messages
 from std_msgs.msg import Bool, Header  # ROS Messages
+from libsbp_ros_msgs.msg import MsgBaselineHeading  # GPS Heading
+from libsbp_ros_msgs.msg import MsgPosLlh  # GPS Position
+from sensor_msgs.msg import NavSatFix  # GPS
 
 # End of Imports --------------------------------------------------------------
 
@@ -152,6 +155,21 @@ def estop_software_button_callback(msg):
     estop_software_button = msg.data
 
 
+def gps_heading_callback(msg):
+    """Report the GPS heading"""
+    global gps_heading
+
+    gps_heading = msg.heading
+
+
+def gps_position_callback(msg):
+    """Report the GPS position"""
+    global gps_latitude, gps_longitude
+
+    gps_latitude = msg.lat
+    gps_longitude = msg.lon
+
+
 def write_to_redis(status_msg):
     """Write statuses to redis server"""
     global redis
@@ -169,6 +187,9 @@ def write_to_redis(status_msg):
         redis.set("road_angle", status_msg.road_angle)
         redis.set("gear", status_msg.gear)
         redis.set("speed", status_msg.speed)
+        redis.set("heading", status_msg.heading)
+        redis.set("latitude", status_msg.latitude)
+        redis.set("longitude", status_msg.longitude)
 
         redis.set("is_enabled", str(status_msg.is_enabled))
         redis.set("requested_speed", status_msg.requested_speed)
@@ -187,6 +208,7 @@ def publish_status(TimerEvent):
     global requested_speed, requested_road_angle, enabled
     global estop_state, estop_heartbeat, estop_physical_button, estop_wireless_button, estop_software_button
     global time_last_heartbeat, last_twist_time
+    global gps_latitude, gps_longitude, gps_heading
 
     # Check if Twist message has timed out - set to 0 if so
     if rospy.Time.now() - last_twist_time > twist_timeout:
@@ -214,6 +236,9 @@ def publish_status(TimerEvent):
     status.road_angle = round(road_angle, 3) if not is_simulated else round(requested_road_angle, 3)  # Temp fix
     status.gear = gear
     status.speed = round(speed, 2) if not is_simulated else round(requested_speed, 3)  # Temp fix for simulation mode
+    status.heading = gps_heading / 1000.0
+    status.latitude = gps_latitude
+    status.longitude = gps_longitude
 
     # ROS Control
     status.is_enabled = enabled
@@ -233,6 +258,17 @@ def publish_status(TimerEvent):
 
     pub_status.publish(status)
     write_to_redis(status)
+
+    # Make NavSatFix message
+    nav_sat_fix_msg = NavSatFix()
+    nav_sat_fix_msg.header.stamp = rospy.Time.now()
+    nav_sat_fix_msg.header.frame_id = "map"
+    nav_sat_fix_msg.status.status = 1
+    nav_sat_fix_msg.status.service = 1
+    nav_sat_fix_msg.latitude = gps_latitude
+    nav_sat_fix_msg.longitude = gps_longitude
+
+    pub_navsatfix.publish(nav_sat_fix_msg)
 
 
 # End of Callbacks and Functions ----------------------------------------------
@@ -267,6 +303,9 @@ globals_dict = {
     "estop_physical_button": False,
     "estop_wireless_button": False,
     "estop_software_button": False,
+    "gps_heading": 0.0,
+    "gps_latitude": 0.0,
+    "gps_longitude": 0.0,
 }
 
 # Make all variables global
@@ -290,6 +329,8 @@ rospy.Subscriber(rospy.get_param("report_brakes"), BrakeReport, report_brakes_ca
 rospy.Subscriber(rospy.get_param("report_steering"), SteeringReport, report_steering_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("report_gear"), GearReport, report_gear_callback, queue_size=1)
 rospy.Subscriber(rospy.get_param("drive"), Twist, drive_twist_callback, queue_size=1)
+rospy.Subscriber(rospy.get_param("gps_heading"), MsgBaselineHeading, gps_heading_callback, queue_size=1)
+rospy.Subscriber(rospy.get_param("gps_position"), MsgPosLlh, gps_position_callback, queue_size=1)
 twist_timeout = rospy.Duration(0.1)  # 100ms
 last_twist_time = rospy.Time(0)
 time_last_heartbeat = rospy.Time(0)
@@ -298,7 +339,8 @@ heartbeat_timeout = rospy.Duration(1 / 10)  # 10Hz
 # rospy.Timer(rospy.Duration(1.0), speed_limit_callback)  # Check speed limit every 1 second
 
 # Status publishers
-pub_status = rospy.Publisher(topic_status, ActorStatus, queue_size=10)
+pub_status = rospy.Publisher(topic_status, ActorStatus, queue_size=1)
+pub_navsatfix = rospy.Publisher("fix", NavSatFix, queue_size=1)
 rate = 100  # Hz
 rospy.Timer(rospy.Duration(1 / rate), publish_status)
 

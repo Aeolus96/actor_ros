@@ -9,6 +9,7 @@ project(actor_ros)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   dbw_polaris_msgs
+  libsbp_ros_msgs
   geometry_msgs
   sensor_msgs
   roscpp

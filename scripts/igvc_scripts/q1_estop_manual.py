@@ -31,15 +31,19 @@ actor = actor_ros.scripting_tools.ActorScriptTools()  # ACTor Scripting Tools in
 # ---------------------------------------------------------------------------------------------------------------------
 # ---------------------------------------------------------------------------------------------------------------------
 
-# TODO: Add your code from here
-
 actor.print_title("Testing - E-Stop Manual")
 
 actor.print_highlights("Go Forward")
 
 estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
-actor.drive_for(speed=1.0, angle=0.0, duration=5.0)
+# time loop
+start_time = rospy.Time.now()
+while rospy.Time.now() - start_time < rospy.Duration(5.0):
+    print(actor.status.heading)
+    rospy.sleep(0.1)
+
+# actor.drive_for(speed=4.0, angle=0.0, duration=15.0)
 
 actor.stop_vehicle(duration=5.0)
 

@@ -44,6 +44,9 @@ class ActorStatusReader:
         self.road_angle = 0
         self.speed = 0
         self.gear = "NONE"
+        self.heading = 0
+        self.latitude = 0
+        self.longitude = 0
         self.is_enabled = False
         self.requested_speed = 0
         self.requested_road_angle = 0
@@ -103,6 +106,9 @@ class ActorStatusReader:
         self.road_angle = ActorStatus_msg.road_angle
         self.speed = ActorStatus_msg.speed
         self.gear = ActorStatus_msg.gear
+        self.heading = ActorStatus_msg.heading
+        self.latitude = ActorStatus_msg.latitude
+        self.longitude = ActorStatus_msg.longitude
 
         # Control information
         self.is_enabled = ActorStatus_msg.is_enabled
@@ -166,6 +172,9 @@ class ActorStatusReader:
         self.road_angle = self.to_float(self.redis.get("road_angle"))
         self.speed = self.to_float(self.redis.get("speed"))
         self.gear = self.redis.get("gear")
+        self.heading = self.to_float(self.redis.get("heading"))
+        self.latitude = self.to_float(self.redis.get("latitude"))
+        self.longitude = self.to_float(self.redis.get("longitude"))
 
         self.is_enabled = self.to_bool(self.redis.get("is_enabled"))
         self.requested_speed = self.to_float(self.redis.get("requested_speed"))
