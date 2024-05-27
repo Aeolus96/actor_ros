@@ -2,6 +2,7 @@
     <!-- Input arguments -->
     <arg name="simulated" default="false" />
     <arg name="carla" default="false" />
+    <arg name="actor2" default="false" />
 
 
     <!-- Adding external ROS packages using SEPARATE LAUNCH FILES ............................. -->
@@ -19,7 +20,12 @@
     </group>
     <group unless="$(arg simulated)">
         <!-- Load the Real vehicle related launch file -->
-        <include file="$(find actor_ros)/launch/support_real.launch" />
+        <group if="$(arg actor2)">
+            <include file="$(find actor_ros)/launch/support_real_actor_2.launch" />
+        </group>
+        <group unless="$(arg actor2)">
+            <include file="$(find actor_ros)/launch/support_real_actor_1.launch" />
+        </group>
     </group>
 
 

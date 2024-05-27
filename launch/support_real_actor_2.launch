@@ -51,23 +51,21 @@
 
 
     <!-- Piksi Multi GPS ...................................................-->
-    <group ns="reference">
-        <include file="$(find piksi_multi_cpp)/launch/rover.launch">
-            <!-- ACTor 1 Piksi IP -->
-            <arg name="device_ids" value="tcp://192.168.0.222:55555" />
-            <!-- ACTor 2 Piksi IP -->
-            <!-- <arg name="device_ids" value="tcp://192.168.60.30:55555" /> -->
-        </include>
-    </group>
+    <include file="$(find piksi_multi_cpp)/launch/rover.launch">
+        <arg name="ns" value="reference" />
+        <!-- ACTor 1 Piksi IP -->
+        <arg name="device_ids" value="tcp://192.168.0.222:55555" />
+        <!-- ACTor 2 Piksi IP -->
+        <!-- <arg name="device_ids" value="tcp://192.168.60.30:55555" /> -->
+    </include>
 
-    <group ns="attitude">
-        <include file="$(find piksi_multi_cpp)/launch/rover.launch">
-            <!-- ACTor 1 Piksi IP -->
-            <arg name="device_ids" value="tcp://192.168.0.223:55555" />
-            <!-- ACTor 2 Piksi IP -->
-            <!-- <arg name="device_ids" value="tcp://192.168.60.31:55555" /> -->
-        </include>
-    </group>
+    <include file="$(find piksi_multi_cpp)/launch/rover.launch">
+        <arg name="ns" value="attitude" />
+        <!-- ACTor 1 Piksi IP -->
+        <arg name="device_ids" value="tcp://192.168.0.223:55555" />
+        <!-- ACTor 2 Piksi IP -->
+        <!-- <arg name="device_ids" value="tcp://192.168.60.31:55555" /> -->
+    </include>
     <!-- .................................................................. -->
 
 
