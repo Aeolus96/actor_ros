@@ -66,7 +66,8 @@ class ActorScriptTools:
 
         self.print_highlights("IGVC Tooling Initialized")
 
-    def any_callback(self, msg, name):
+    def any_callback(self, msg, name) -> None:
+        """Any message callback function"""
         setattr(self, name, msg)
 
     def print_highlights(self, text: str) -> None:
@@ -83,7 +84,7 @@ class ActorScriptTools:
         print(f"{' ' * padding}{title.upper()}{' ' * padding}")
         print("=" * width)
 
-    def stop_vehicle(self, using_brakes: bool = False, duration: float = 3.0) -> bool:
+    def stop_vehicle(self, using_brakes: bool = False, duration: float = 3.0) -> None:
         """Stop the vehicle by publishing either a zero twist message or a brake pedal command
         and wait for duration seconds"""
         from dbw_polaris_msgs.msg import BrakeCmd
@@ -101,7 +102,7 @@ class ActorScriptTools:
 
             # Reach target pedal value by increasing pedal value for duration seconds
             brake_target = 0.4  # target brake pedal value
-            increment = (duration * rate_hz) / brake_target
+            increment = 2 * brake_target / rate_hz  # increment fully in 2 seconds
 
             while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
                 msg.pedal_cmd = min(brake_target, msg.pedal_cmd + increment)  # Increase pedal value
@@ -172,6 +173,16 @@ class ActorScriptTools:
         msg.linear.x = speed
         msg.angular.z = angle
         self.pub_twist.publish(msg)
+
+    def update_waypoint(self, lat: float = None, long: float = None, current_heading: float = None) -> "Waypoint":
+        """Creates a Waypoint instance from the current vehicle status"""
+
+        if lat is not None and long is not None and current_heading is not None:
+            # Use input lat, long and current heading to return a waypoint
+            return Waypoint(lat, long, current_heading)
+        else:
+            # Use current vehicle status to return a waypoint
+            return Waypoint(self.status.latitude, self.status.longitude, self.status.heading)
 
     def drive_for(
         self,
@@ -301,11 +312,23 @@ class ActorScriptTools:
         else:
             pass
 
-    def gps(self, lat: float = None, long: float = None, range: float = None) -> bool:  # TODO
-        """Returns True if GPS coordinates are within the specified range"""
+    def waypoint_in_range(self, lat: float = None, long: float = None, radius: float = 3.0) -> bool:
+        """Returns True if GPS coordinates are within the specified radius (meters)"""
+
+        current_waypoint = self.update_waypoint()
+        goal_waypoint = Waypoint(lat, long)
+        distance = current_waypoint.distance_to(goal_waypoint)
+        return distance < radius
+
+    def follow_waypoints(self, waypoints: list = None) -> float:
+        """Returns the angle needed to follow the waypoint trajectory in the list"""
+
+        # Available: self.status.lat, self.status.long, self.status.heading
+
+        # How to go through the waypoints list? once in range pop that waypoint?
 
         pass
-        return
+        # return target_angle
 
     # TODO: Add methods from igvc_python but make them more Pythonic a.k.a intuitive and easy to use
 
@@ -315,29 +338,26 @@ class ActorScriptTools:
 class Waypoint:
     """Class for waypoint lat and long operations"""
 
-    def __init__(self, lat: float = None, long: float = None) -> None:
-        """Sets waypoint lat and long (decimal degrees)"""
+    def __init__(self, lat: float = None, long: float = None, current_heading: float = None) -> None:
+        """Sets waypoint lat and long (decimal degrees) and current heading (degrees)"""
+
+        if lat is None or long is None:
+            print("Please specify lat, long when creating a waypoint")
+            return
+
         self.lat = lat
         self.long = long
-        self.current_heading = None
+        self.current_heading = current_heading if current_heading is not None else 0
 
     def __str__(self) -> str:
-        return f"Waypoint: {self.lat:.6f}, {self.long:.6f}"
+        return f"Waypoint: {self.lat:.6f}, {self.long:.6f}, {self.current_heading:.3f}"
 
-    def update(self, lat: float, long: float) -> None:
+    def update(self, lat: float, long: float, current_heading: float) -> None:
         """Sets waypoint lat and long (decimal degrees)"""
 
-        new_waypoint = Waypoint(lat, long)  # Make new waypoint
-
-        # Update current heading to waypoint if within 100m
-        if self.distance_to(new_waypoint) < 100:
-            self.current_heading = self.bearing_with(new_waypoint)
-        else:
-            self.current_heading = None
-
-        # Update current waypoint to latest values
         self.lat = lat
         self.long = long
+        self.current_heading = current_heading
 
     def distance_to(self, goal: "Waypoint") -> float:
         """Returns Haversine distance between two waypoints in meters"""
@@ -360,7 +380,7 @@ class Waypoint:
         return 2 * radius_earth * asin(sqrt(a))
 
     def bearing_with(self, goal: "Waypoint") -> float:
-        """Returns bearing between two waypoints in degrees"""
+        """Returns absolute bearing between two waypoints in degrees"""
 
         from math import sin, cos, atan2, radians, degrees
 
@@ -375,3 +395,11 @@ class Waypoint:
         y = cos(phi_1) * sin(phi_2) - sin(phi_1) * cos(phi_2) * cos(delta_lambda)
 
         return (degrees(atan2(x, y)) + 360) % 360
+
+    def relative_bearing_with(self, goal: "Waypoint") -> float:
+        """Returns the relative bearing from the current heading to the goal waypoint in degrees"""
+
+        absolute_bearing = self.bearing_with(goal)
+        relative_bearing = (absolute_bearing - self.current_heading + 360) % 360
+
+        return relative_bearing

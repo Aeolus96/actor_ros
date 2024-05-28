@@ -4,9 +4,11 @@
     <include file="$(find actor_estop)/launch/core.launch" />
     <!-- .................................................................. -->
 
+
     <!-- actor_description ................................................ -->
     <include file="$(find actor_description)/launch/actor_description.launch" />
     <!-- .................................................................. -->
+
 
     <!-- rqt_reconfigure aka Dynamic Reconfigure GUI .......................-->
     <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_console" args="-t" />
@@ -14,7 +16,7 @@
 
 
     <!-- DataSpeed DBW .....................................................-->
-    <include file="$(find dbw_polaris_can)/launch/dbw.launch" >
+    <include file="$(find dbw_polaris_can)/launch/dbw.launch">
         <arg name="load_urdf" value="false" />
     </include>
     <!-- .................................................................. -->
@@ -110,9 +112,7 @@
     <node pkg="ltu_actor_route_obstacle" type="region" name="region" output="screen">
         <param name="frame_id" value="top_3d_lidar" />
         <param name="sub_topic" value="/velodyne_points" />
-
     </node>
-    <!-- TODO: Verify the regions -->
     <!-- .................................................................. -->
 
 
@@ -167,6 +167,9 @@
         <param name="show_blob" type="bool" value="false" />
         <param name="show_lines" type="bool" value="false" />
     </node>
+    <!-- Example: Param load from dynamic_reconfigure -->
+    <!-- <node name="dynamic_reconfigure_load" pkg="dynamic_reconfigure" type="dynparam" -->
+    <!-- args="load /camera_node_name $(find my_package)/params/camera.yaml" /> -->
     <!-- .................................................................. -->
 
 

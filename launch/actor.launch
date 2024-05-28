@@ -72,10 +72,6 @@
             <!-- If port is changed, please change it in GUI as well -->
             <param name="port" value="8888" />
         </node>
-
-        <!-- Actor GUI support - using ROSboard instead -->
-        <!-- <node name="actor_gui_support" pkg="actor_ros" type="actor_gui_support.py"
-        respawn="true" /> -->
         <!-- .................................................................................. -->
 
     </group>
