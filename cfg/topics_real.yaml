@@ -22,6 +22,8 @@ report_gear: /vehicle/gear_report
 enabled: /vehicle/dbw_enabled
 gps_position: /reference/piksi/position_receiver_0/sbp/pos_llh
 gps_heading: /attitude/piksi/attitude_receiver_0/sbp/baseline_heading
+front_lidar: /front_2d_lidar/closest_object
+rear_lidar: /rear_2d_lidar/closest_object
 
 # All vehicle control related topics go here (publish messages here to control ACTor)
 drive: /actor/cmd_vel
