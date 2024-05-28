@@ -419,10 +419,17 @@ class YAMLReader:
 
     def __init__(self, file_path):
         """Initialize the YAML Reader"""
+
+        self.file_path = file_path
+        self.params = None
+
+    def read(self, file_path=None):
         import yaml
         from munch import munchify
 
         self.params = None
+        if file_path is None:
+            file_path = self.file_path
         with open(file_path, "r") as file:
             try:
                 print(f"Loading YAML file: {file_path}")
@@ -430,6 +437,23 @@ class YAMLReader:
             except Exception as e:
                 print(f"Failed to load YAML file: {e}")
                 self.params = None
+
+    def write(self, file_path=None):
+        """Write the params attribute to a YAML file"""
+        import yaml
+        from munch import unmunchify
+
+        if file_path is None:
+            file_path = self.file_path
+        if self.params is not None:
+            try:
+                with open(file_path, "w") as file:
+                    yaml.safe_dump(unmunchify(self.params), file)
+                    print(f"YAML file successfully written to: {file_path}")
+            except Exception as e:
+                print(f"Failed to write YAML file: {e}")
+        else:
+            print("No data to write")
 
     # End of class ------------------------
 
