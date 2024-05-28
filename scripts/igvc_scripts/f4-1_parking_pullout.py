@@ -1,24 +1,22 @@
 #!/usr/bin/env python3
 
-# Test Q.1 E-Stop Manual
+# Test FIV.1 Parking. Pull Out
 # 1. Test Goal
-# This test is intended to evaluate safety features of Manual E-Stop.
+# This test is intended to evaluate if a vehicle is able to reverse out (or pull out) of the representative parking space.
+# The direction of pull out (right-turn-pull-out or left-turn-pull-out) is selected by the judges. The same direction is
+# repeated for all 3 attempts.
+# Figure 15: Parking. Pull Out
 # 2. Test Setup
 # The following items shall be placed on the road:
-# o Barrel 1 on the side of the road to indicate a starting point at which vehicle is stationary
-# o Barrel 2 on the side of the road to indicate the position where E-Stop button is pressed
-# o Barrel 3 on the side of the road to indicate the maxim distance for the vehicle to come to the complete
-# stop. The distance between Barrel 2 and Barrel 3 is 14 feet
+# o Barrel 1 to indicate a starting point at which vehicle is stationary
+# o Barrel 2 to indicate an ending point
 # 3. Test Script
 # 1. Begin test run
 # 2. Judge pushes 'start' button
 # 3. Vehicle takes off from full stop at Barrel 1
-# 4. Vehicle maintains the target speed
-# 5. Judge manually pushes E-Stop at Barrel 2
-# 6. Vehicle comes to full stop before reaching Barrel 3.
-# 7. End test run
-# 4. Evaluation
-# Pass Criteria - vehicle is able to stop before reaching Barrel 3
+# 4. Vehicle slowly pulls out from the parking spot
+# 5. Vehicle reaches full stop within 3 ft from the Barrel 2
+# 6. End test run
 
 import actor_ros  # ACTor specific utility functions
 import rospy  # ROS Python API
@@ -41,7 +39,8 @@ actor.drive_for(speed=1.5, angle=0.0, speed_distance=3)
 
 actor.drive_for(speed=1.5, angle=35.0, speed_distance=6)
 
-#actor.drive_for(speed=1.5, angle=0.0, duration=0.4)
+#drive until at barrel
+actor.drive_for(speed=1.5, angle=0.0, function=actor.lidar3d, max_distance=3)
 
 actor.stop_vehicle(duration=5.0)
 
