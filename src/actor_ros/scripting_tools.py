@@ -38,6 +38,8 @@ class ActorScriptTools:
         # Initialize ROS Node -------------------------------------------------
         rospy.init_node("igvc_script")
         self.status = actor_tools.ActorStatusReader()  # Read ACTor Status messages
+        # Set Initial waypoint
+        self.waypoint = Waypoint(self.status.latitude, self.status.longitude, self.status.heading)
 
         # Import IGVC Parameters from YAML file -------------------------------
         self.package_directory = rospkg.RosPack().get_path("actor_ros")
@@ -174,15 +176,10 @@ class ActorScriptTools:
         msg.angular.z = angle
         self.pub_twist.publish(msg)
 
-    def update_waypoint(self, lat: float = None, long: float = None, current_heading: float = None) -> "Waypoint":
-        """Creates a Waypoint instance from the current vehicle status"""
+    def update_current_waypoint(self) -> None:
+        """Updates self Waypoint instance from the current vehicle status"""
 
-        if lat is not None and long is not None and current_heading is not None:
-            # Use input lat, long and current heading to return a waypoint
-            return Waypoint(lat, long, current_heading)
-        else:
-            # Use current vehicle status to return a waypoint
-            return Waypoint(self.status.latitude, self.status.longitude, self.status.heading)
+        self.waypoint.update(self.status.latitude, self.status.longitude, self.status.heading)
 
     def drive_for(
         self,
@@ -215,11 +212,16 @@ class ActorScriptTools:
                 self.drive(speed, angle)
                 rate.sleep()
 
-            return
-
         elif gps_distance is not None:
-            # TODO: Implement GPS-based distance calculations
-            pass
+            self.print_highlights(f"Driving for {round(gps_distance, 2)}meters...")
+            self.update_current_waypoint()
+            start_waypoint = self.waypoint
+            while not rospy.is_shutdown() and distance_traveled < gps_distance:
+                # Calculate distance based on gps coordinates
+                self.update_current_waypoint()
+                distance_traveled = start_waypoint.distance_to(self.waypoint)
+                self.drive(speed, angle)
+                rate.sleep()
 
         elif duration is not None:  # Use time-based end condition
             self.print_highlights(f"Driving for {round(duration, 2)}seconds...")
@@ -227,14 +229,10 @@ class ActorScriptTools:
                 self.drive(speed, angle)
                 rate.sleep()
 
-            return
-
         elif callable(function):  # Use function-based end condition
             while not rospy.is_shutdown() and not function(*args, **kwargs):
                 self.drive(speed, angle)
                 rate.sleep()
-
-            return
 
     def lane_center(self, use_blob: bool = True, blob_gain: float = 45.0, lane: str = None) -> float:
         """Outputs the road angle needed to center in the lane.
@@ -291,7 +289,6 @@ class ActorScriptTools:
         elif pothole:
             return self.msg_pothole_detected.data > 0 and self.msg_pothole_size.data > size
 
-    
     def lidar_3d(
         self,
         lidar_zone: str = "front",
@@ -301,11 +298,13 @@ class ActorScriptTools:
         """Uses a combination of 2D and 3D LiDAR to determine whether an object exists within the specified zone and range.
         lidar_zone: 'front' and 'rear' are accepted"""
 
-        if lidar_zone == 'front':
+        if lidar_zone == "front":
             front_3d_adj = self.msg_region_front_closest.data - 1.2
-            return (min_distance < front_3d_adj < max_distance) or (min_distance < self.msg_front_2d_lidar_closest_object < max_distance)
-        
-        if lidar_zone == 'rear':
+            return (min_distance < front_3d_adj < max_distance) or (
+                min_distance < self.msg_front_2d_lidar_closest_object < max_distance
+            )
+
+        if lidar_zone == "rear":
             return min_distance < self.msg_rear_2d_lidar_closest_object < max_distance
 
     def lane_change(self, left: bool = False, right: bool = False):  # TODO
@@ -321,20 +320,34 @@ class ActorScriptTools:
     def waypoint_in_range(self, lat: float = None, long: float = None, radius: float = 3.0) -> bool:
         """Returns True if GPS coordinates are within the specified radius (meters)"""
 
-        current_waypoint = self.update_waypoint()
+        if lat is None or long is None:
+            return False
+        self.update_current_waypoint()
         goal_waypoint = Waypoint(lat, long)
-        distance = current_waypoint.distance_to(goal_waypoint)
-        return distance < radius
+        distance = self.waypoint.distance_to(goal_waypoint)
+        return distance < radius  # or distance is within radius
 
-    def follow_waypoints(self, waypoints: list = None) -> float:
-        """Returns the angle needed to follow the waypoint trajectory in the list"""
+    def follow_waypoints(self, waypoints: list = None, radius: float = 3.0) -> float:
+        """Returns the angle needed to follow the waypoint trajectory using a list of Waypoints(class). Make sure the list is a defined object and ordered correctly"""
 
-        # Available: self.status.lat, self.status.long, self.status.heading
+        if waypoints is None:
+            print("Please specify a list of waypoints")
+            return 0
 
-        # How to go through the waypoints list? once in range pop that waypoint?
+        if len(waypoints) > 0:  # If there are waypoints available
+            self.update_current_waypoint()
+            goal_waypoint = waypoints[0]
+            target_angle = self.waypoint.relative_bearing_with(goal_waypoint)
 
-        pass
-        # return target_angle
+            if self.waypoint_in_range(lat=goal_waypoint.lat, long=goal_waypoint.long, radius=radius):
+                print("Current ", self.waypoint)
+                print("Reached ", goal_waypoint)
+                waypoints.pop(0)  # remove waypoint because it has been sufficiently reached
+
+            return target_angle
+
+        else:  # If there are no more waypoints in the list
+            return 0
 
     # TODO: Add methods from igvc_python but make them more Pythonic a.k.a intuitive and easy to use
 
