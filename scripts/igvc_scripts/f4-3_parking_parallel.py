@@ -39,13 +39,14 @@ estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
 actor.shift_gear("REVERSE")
 
-actor.drive_for(speed=-2.0, angle=0.0, speed_distance=0.5)
+actor.drive_for(speed=-1.2, angle=0.0, speed_distance=0.1)
 
-actor.drive_for(speed=-2.0, angle=-36.0, speed_distance=3.0)
+actor.drive_for(speed=-0.9, angle=-40.0, speed_distance=3.3)
+actor.drive_for(speed=-0.9, angle=0.0, speed_distance=0.2)
 
-actor.drive_for(speed=-2.0, angle=34.0, speed_distance=6.2)
+actor.drive_for(speed=-0.8, angle=44.0, speed_distance=3.1)
 
-actor.drive_for(speed=-2.0, angle=0.0, speed_distance=0.1)
+actor.drive_for(speed=-1.2, angle=0.0, speed_distance=0.05)
 
 actor.shift_gear("DRIVE")
 

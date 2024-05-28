@@ -21,72 +21,73 @@ publishers:
     msg_type: String
 
 subscribers:
-  # Lane Center for simulator -----------------------
-  - topic: /lane_center
-    msg_file: std_msgs.msg
-    msg_type: Float32
-  - topic: /lane_center_left_lane
-    msg_file: std_msgs.msg
-    msg_type: Bool
-  - topic: /lane_center_right_lane
-    msg_file: std_msgs.msg
-    msg_type: Bool
-  # Lidar Zones for simulator ---------------------
-  - topic: /lidar_zone_0_closest
-    msg_file: std_msgs.msg
-    msg_type: Float32
-  - topic: /lidar_zone_1_closest
-    msg_file: std_msgs.msg
-    msg_type: Float32
-  - topic: /lidar_zone_2_closest
-    msg_file: std_msgs.msg
-    msg_type: Float32
-  # Simulator Stop Sign Detection for simulator -----
-  - topic: /stop_sign_dectected
-    # yes, it is dectected in the simulator
-    msg_file: std_msgs.msg
-    msg_type: UInt8
-  # Barrel Detection for simulator ------------------
-  - topic: /detect_barrel_vision
-    msg_file: std_msgs.msg
-    msg_type: Bool
-  # Road Object Detection for simulator -------------
-  - topic: /detect_road_obj
-    msg_file: std_msgs.msg
-    msg_type: Bool
-  # Lidar Zones -----------------------------
-  - topic: /region/front_close
-    msg_file: std_msgs.msg
-    msg_type: Float64
+  # # Lane Center for simulator -----------------------
+  # - topic: /lane_center
+  #   msg_file: std_msgs.msg
+  #   msg_type: Float32
+  # - topic: /lane_center_left_lane
+  #   msg_file: std_msgs.msg
+  #   msg_type: Bool
+  # - topic: /lane_center_right_lane
+  #   msg_file: std_msgs.msg
+  #   msg_type: Bool
+  # # Lidar Zones for simulator ---------------------
+  # - topic: /lidar_zone_0_closest
+  #   msg_file: std_msgs.msg
+  #   msg_type: Float32
+  # - topic: /lidar_zone_1_closest
+  #   msg_file: std_msgs.msg
+  #   msg_type: Float32
+  # - topic: /lidar_zone_2_closest
+  #   msg_file: std_msgs.msg
+  #   msg_type: Float32
+  # # Simulator Stop Sign Detection for simulator -----
+  # - topic: /stop_sign_dectected
+  #   # yes, it is dectected in the simulator
+  #   msg_file: std_msgs.msg
+  #   msg_type: UInt8
+  # # Barrel Detection for simulator ------------------
+  # - topic: /detect_barrel_vision
+  #   msg_file: std_msgs.msg
+  #   msg_type: Bool
+  # # Road Object Detection for simulator -------------
+  # - topic: /detect_road_obj
+  #   msg_file: std_msgs.msg
+  #   msg_type: Bool
+
+  # Lidar Zones from real vehicle --------------------
+  # - topic: /region/front_close
+  #   msg_file: std_msgs.msg
+  #   msg_type: Float64
   - topic: /region/front_closest
     msg_file: std_msgs.msg
     msg_type: Float64
-  - topic: /region/front_far
-    msg_file: std_msgs.msg
-    msg_type: Float64
-  - topic: /region/left_close
-    msg_file: std_msgs.msg
-    msg_type: Float64
-  - topic: /region/left_closest
-    msg_file: std_msgs.msg
-    msg_type: Float64
-  - topic: /region/left_far
-    msg_file: std_msgs.msg
-    msg_type: Float64
-  - topic: /region/right_close
-    msg_file: std_msgs.msg
-    msg_type: Float64
-  - topic: /region/right_closest
-    msg_file: std_msgs.msg
-    msg_type: Float64
-  - topic: /region/right_far
-    msg_file: std_msgs.msg
-    msg_type: Float64
-  # Pothole Detection --------------------
-  - topic: /actor_nav/trigger
-    msg_file: std_msgs.msg
-    msg_type: String
-  # Yolo Object Detection -------------
+  # - topic: /region/front_far
+  #   msg_file: std_msgs.msg
+  #   msg_type: Float64
+  # - topic: /region/left_close
+  #   msg_file: std_msgs.msg
+  #   msg_type: Float64
+  # - topic: /region/left_closest
+  #   msg_file: std_msgs.msg
+  #   msg_type: Float64
+  # - topic: /region/left_far
+  #   msg_file: std_msgs.msg
+  #   msg_type: Float64
+  # - topic: /region/right_close
+  #   msg_file: std_msgs.msg
+  #   msg_type: Float64
+  # - topic: /region/right_closest
+  #   msg_file: std_msgs.msg
+  #   msg_type: Float64
+  # - topic: /region/right_far
+  #   msg_file: std_msgs.msg
+  #   msg_type: Float64
+  # Pothole Detection ------------------------------
+  # - topic: /actor_nav/trigger
+  #   msg_file: std_msgs.msg
+  #   msg_type: String
+  # Yolo Object Detection -------------------------
   - topic: /stop_sign_detected
     msg_file: std_msgs.msg
     msg_type: UInt8
@@ -115,4 +116,3 @@ subscribers:
   - topic: /blob/cmd
     msg_file: geometry_msgs.msg
     msg_type: Twist
-  # TODO: Add GPS topics

@@ -1,8 +1,14 @@
 <launch>
 
     <!-- actor_estop ...................................................... -->
-    <!-- <include file="$(find actor_estop)/launch/core.launch" /> -->
+    <include file="$(find actor_estop)/launch/core.launch" />
     <!-- .................................................................. -->
+
+
+    <!-- actor_description ................................................ -->
+    <include file="$(find actor_description)/launch/actor_description.launch" />
+    <!-- .................................................................. -->
+
 
     <!-- rqt_reconfigure aka Dynamic Reconfigure GUI .......................-->
     <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_console" args="-t" />
@@ -10,7 +16,9 @@
 
 
     <!-- DataSpeed DBW .....................................................-->
-    <include file="$(find dbw_polaris_can)/launch/dbw.launch" />
+    <include file="$(find dbw_polaris_can)/launch/dbw.launch">
+        <arg name="load_urdf" value="false" />
+    </include>
     <!-- .................................................................. -->
 
 
@@ -18,8 +26,6 @@
     <!-- <include file="$(find avt_vimba_camera)/launch/mono_camera.launch"> -->
     <!-- ACTor 1 Mako Camera IP -->
     <!-- <arg name="ip" value="192.168.0.40" /> -->
-    <!-- ACTor 2 Mako Camera IP -->
-    <!-- <arg name="ip" value="192.168.60.40" /> -->
     <!-- Other Arguments, modify if needed -->
     <!-- <arg name="guid" value="50-0536910784" />
         <arg name="frame_id" value="" />
@@ -51,29 +57,19 @@
 
 
     <!-- Piksi Multi GPS ...................................................-->
-    <group ns="reference">
-        <include file="$(find piksi_multi_cpp)/launch/rover.launch">
-            <!-- ACTor 1 Piksi IP -->
-            <arg name="device_ids" value="tcp://192.168.0.222:55555" />
-            <!-- ACTor 2 Piksi IP -->
-            <!-- <arg name="device_ids" value="tcp://192.168.60.30:55555" /> -->
-        </include>
-    </group>
+    <include file="$(find piksi_multi_cpp)/launch/rover.launch">
+        <arg name="ns" value="reference" />
+        <arg name="device_ids" value="tcp://192.168.0.222:55555" />
+    </include>
 
-    <group ns="attitude">
-        <include file="$(find piksi_multi_cpp)/launch/rover.launch">
-            <!-- ACTor 1 Piksi IP -->
-            <arg name="device_ids" value="tcp://192.168.0.223:55555" />
-            <!-- ACTor 2 Piksi IP -->
-            <!-- <arg name="device_ids" value="tcp://192.168.60.31:55555" /> -->
-        </include>
-    </group>
+    <include file="$(find piksi_multi_cpp)/launch/rover.launch">
+        <arg name="ns" value="attitude" />
+        <arg name="device_ids" value="tcp://192.168.0.223:55555" />
+    </include>
     <!-- .................................................................. -->
 
 
     <!-- Velodyne VLP-16 3D LiDAR ..........................................-->
-    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="link_broadcaster"
-        args="0 0 0 0 0 0 0 velodyne 3d_lidar" /> -->
     <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch">
         <arg name="frame_id" value="top_3d_lidar" />
     </include>
@@ -81,20 +77,19 @@
 
 
     <!-- 2D LiDAR ..........................................................-->
-    <!-- TODO: Link device ports with hardware IDs in udev rules -->
     <!-- Front LiDAR -->
     <group ns="front_2d_lidar">
-        <node name="urg_node" pkg="urg_node" type="urg_node" output="screen">
-            <param name="serial_port" value="/dev/ttyACM0" />
-            <param name="frame_id" value="front_2d_lidar" />
-        </node>
+        <include file="$(find actor_lidar)/launch/Lidar2D.launch">
+            <arg name="serial_port" value="/dev/sensors/hokuyo_H1420863" />
+            <arg name="frame_id" value="front_2d_lidar" />
+        </include>
     </group>
     <!-- Rear LiDAR -->
     <group ns="rear_2d_lidar">
-        <node name="urg_node" pkg="urg_node" type="urg_node" output="screen">
-            <param name="serial_port" value="/dev/ttyACM1" />
-            <param name="frame_id" value="rear_2d_lidar" />
-        </node>
+        <include file="$(find actor_lidar)/launch/Lidar2D.launch">
+            <arg name="serial_port" value="/dev/sensors/hokuyo_H1607593" />
+            <arg name="frame_id" value="rear_2d_lidar" />
+        </include>
     </group>
     <!-- .................................................................. -->
 
@@ -106,26 +101,17 @@
         <arg name="mult" value="0.5" />
         <arg name="speed" value="1.5" />
         <arg name="reverse" value="false" />
-        <arg name="gps_fix" value="/reference/rover/piksi/position_receiver_0/sbp/pos_llh" />
-        <arg name="gps_vel_ned" value="/reference/rover/piksi/position_receiver_0/ros/vel_ned" />
-        <arg name="gps_state" value="/reference/rover/piksi/position_receiver_0/ros/receiver_state" />
+        <arg name="gps_fix" value="/actor/fix" />
+        <arg name="gps_vel_ned" value="/reference/piksi/position_receiver_0/ros/vel_ned" />
+        <arg name="gps_state" value="/reference/piksi/position_receiver_0/ros/receiver_state" />
     </include>
     <!-- .................................................................. -->
 
 
     <!-- Route-Obstacle ....................................................-->
     <node pkg="ltu_actor_route_obstacle" type="region" name="region" output="screen">
+        <param name="frame_id" value="top_3d_lidar" />
         <param name="sub_topic" value="/velodyne_points" />
-        <param name="right_close_originX" value="-2.4" />
-        <param name="right_close_originY" value="-2.6" />
-        <param name="right_close_width" value="1.8" />
-        <param name="right_close_length" value="10.2" />
-        <param name="right_close_z_min" value="-1.25" />
-        <param name="right_close_z_max" value="0.0" />
-        <param name="front_far_length" value="12.0" />
-        <param name="left_far_width" value="3.2" />
-        <param name="left_far_originY" value="0.65" />
-        <param name="right_far_originY" value="-1.5" />
     </node>
     <!-- .................................................................. -->
 
@@ -181,6 +167,9 @@
         <param name="show_blob" type="bool" value="false" />
         <param name="show_lines" type="bool" value="false" />
     </node>
+    <!-- Example: Param load from dynamic_reconfigure -->
+    <!-- <node name="dynamic_reconfigure_load" pkg="dynamic_reconfigure" type="dynparam" -->
+    <!-- args="load /camera_node_name $(find my_package)/params/camera.yaml" /> -->
     <!-- .................................................................. -->
 
 

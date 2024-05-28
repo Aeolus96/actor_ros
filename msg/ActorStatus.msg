@@ -12,6 +12,9 @@ string gear                     # String representation of gear state
 float32 steering_wheel_angle    # Direct steering wheel angle in degrees
 float32 road_angle              # Angle from car centerline to drive wheel vector in degrees
 float32 speed                   # Speed in miles per hour
+float64 latitude                # Vehicle latitude
+float64 longitude               # Vehicle longitude
+float64 heading                 # Vehicle heading
 
 # ROS Control Status
 bool is_enabled                 # Actor ROS to hardware control enabled
