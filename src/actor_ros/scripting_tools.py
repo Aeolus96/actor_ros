@@ -291,16 +291,22 @@ class ActorScriptTools:
         elif pothole:
             return self.msg_pothole_detected.data > 0 and self.msg_pothole_size.data > size
 
+    
     def lidar_3d(
         self,
-        lidar_zone: str = "front_closest",
+        lidar_zone: str = "front",
         min_distance: float = 0.1,
-        max_distance: float = 5.0,
+        max_distance: float = 9.9,
     ) -> bool:
-        """Uses the 3D LiDAR zones to detect an object near the vehicle.\n
-        Returns True if an object is detected in specified zone within min_distance and max_distance."""
+        """Uses a combination of 2D and 3D LiDAR to determine whether an object exists within the specified zone and range.
+        lidar_zone: 'front' and 'rear' are accepted"""
 
-        return eval(f"{min_distance} < self.msg_region_{lidar_zone}.data < {max_distance}")
+        if lidar_zone == 'front':
+            front_3d_adj = self.msg_region_front_closest.data - 1.2
+            return (min_distance < front_3d_adj < max_distance) or (min_distance < self.msg_front_2d_lidar_closest_object < max_distance)
+        
+        if lidar_zone == 'rear':
+            return min_distance < self.msg_rear_2d_lidar_closest_object < max_distance
 
     def lane_change(self, left: bool = False, right: bool = False):  # TODO
         """Changes lane based on left and right inputs"""
