@@ -150,17 +150,24 @@ class ActorScriptTools:
         rospy.logdebug(f"Gear shifted to {gear_input}")
         return True
 
-    def drive(self, speed=0.0, angle=0.0) -> None:
+    def drive(
+        self,
+        speed=0.0,
+        speed_kwargs: dict = None,
+        angle=0.0,
+        angle_kwargs: dict = None,
+    ) -> None:
         """Publishes a twist message to drive the vehicle.\n
-        It allows optional function-based speed and angle control.
-        Make sure the function has no arguments and returns a float.\n
+        It allows optional function-based speed and angle control.\n
+        Make sure the function has no arguments or brackets, returns a float.\n
+        Specify kwargs using a dictionary. Example: speed_kwargs={'min_speed': 0.0, 'max_speed': 3.0}\n
         Make sure the vehicle is stopped before requesting a direction change."""
         from geometry_msgs.msg import Twist  # ROS Messages
 
         if callable(speed):  # Use function-based speed control
-            speed = speed()
+            speed = speed(**(speed_kwargs if speed_kwargs is not None else {}))
         if callable(angle):  # Use function-based angle control
-            angle = angle()
+            angle = angle(**(angle_kwargs if angle_kwargs is not None else {}))
 
         # Use input speed and current gear to determine if the vehicle should shift gears
         if speed > 0.0:
@@ -186,13 +193,14 @@ class ActorScriptTools:
     def drive_for(
         self,
         speed=0.0,
+        speed_kwargs: dict = None,
         angle=0.0,
+        angle_kwargs: dict = None,
         speed_distance: float = None,
         gps_distance: float = None,
         duration: float = None,
-        function=None,  # Make sure it is a callable object without arguments
-        *args,
-        **kwargs,
+        end_function=None,
+        end_function_kwargs: dict = None,
     ) -> None:
         """Publishes a twist message to drive the vehicle for a specified duration or distance.\n
         Use ONLY ONE conditional argument: speed_distance or gps_distance or duration or func.\n
@@ -211,7 +219,7 @@ class ActorScriptTools:
                 distance_traveled += (self.status.speed / 2.237) * (rospy.Time.now() - start_time).to_sec()
                 start_time = rospy.Time.now()  # Reset start time for next iteration
 
-                self.drive(speed, angle)
+                self.drive(speed, speed_kwargs, angle, angle_kwargs)
                 rate.sleep()
 
         elif gps_distance is not None:
@@ -222,18 +230,20 @@ class ActorScriptTools:
                 # Calculate distance based on gps coordinates
                 self.update_current_waypoint()
                 distance_traveled = start_waypoint.distance_to(self.waypoint)
-                self.drive(speed, angle)
+                self.drive(speed, speed_kwargs, angle, angle_kwargs)
                 rate.sleep()
 
         elif duration is not None:  # Use time-based end condition
             self.print_highlights(f"Driving for {round(duration, 2)}seconds...")
             while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
-                self.drive(speed, angle)
+                self.drive(speed, speed_kwargs, angle, angle_kwargs)
                 rate.sleep()
 
-        elif callable(function):  # Use function-based end condition
-            while not rospy.is_shutdown() and not function(*args, **kwargs):
-                self.drive(speed, angle)
+        elif callable(end_function):  # Use function-based end condition
+            while not rospy.is_shutdown() and not end_function(
+                **(end_function_kwargs if end_function_kwargs is not None else {})
+            ):
+                self.drive(speed, speed_kwargs, angle, angle_kwargs)
                 rate.sleep()
 
     def lane_center(self, use_blob: bool = True, blob_gain: float = 45.0, lane: str = None) -> float:
@@ -322,27 +332,35 @@ class ActorScriptTools:
 
         return within_range
 
-    def lane_change(self, left: bool = False, right: bool = False):  # TODO
-        """Changes lane based on left and right inputs"""
+    def read_waypoints(self, file_path: str = None, verbose: bool = False) -> list:
+        """Reads waypoints from saved YAML file"""
+        from actor_ros.actor_tools import YAMLReader
 
-        if left:
-            pass
-        elif right:
-            pass
-        else:
-            pass
+        file = YAMLReader(file_path=file_path)
+        file.read()
 
-    def waypoint_in_range(self, lat: float = None, long: float = None, radius: float = 3.0) -> bool:
+        waypoint_list = []
+        for i in range(len(file.params)):
+            waypoint = eval(f"file.params.waypoint{i}")
+            waypoint_list.append(Waypoint(lat=waypoint[0].lat, long=waypoint[1].long, heading=waypoint[2].heading))
+
+        if verbose:
+            print(waypoint_list)
+
+        return waypoint_list
+
+    def waypoint_in_range(self, goal_waypoint: "Waypoint" = None, radius: float = 3.0) -> bool:
         """Returns True if GPS coordinates are within the specified radius (meters)"""
 
-        if lat is None or long is None:
+        if goal_waypoint is None:
+            print("Please specify a waypoint")
             return False
-        self.update_current_waypoint()
-        goal_waypoint = Waypoint(lat, long)
+
+        self.update_current_waypoint()  # Update current waypoint position
         distance = self.waypoint.distance_to(goal_waypoint)
         return distance < radius  # or distance is within radius
 
-    def follow_waypoints(self, radius: float = 1.5, gain: float = 1.0) -> float:
+    def follow_waypoints(self, radius: float = 1.5, gain: float = 1.0, verbose: bool = False) -> float:
         """Returns the angle needed to follow the waypoint trajectory using a list of Waypoints(class). Make sure the list is a defined object and ordered correctly"""
 
         if self.waypoints is None:
@@ -352,50 +370,28 @@ class ActorScriptTools:
         num_waypoints = len(self.waypoints)
 
         if num_waypoints > 0:  # If there are waypoints available
-            self.update_current_waypoint()
-            goal_waypoint = self.waypoints[0]
+            self.update_current_waypoint()  # Update current waypoint position
 
+            # Calculate target angle based on the average relative angle of the first n waypoints
             n = min(10, num_waypoints)
-            target_sum = 0
-
+            target_angle_sum = 0
             for i in range(n):
-                target_sum += self.waypoint.relative_bearing_with(self.waypoints[i]) * gain
+                target_angle_sum += self.waypoint.relative_bearing_with(self.waypoints[i]) * gain
 
-            target_angle = target_sum / n
+            target_angle = target_angle_sum / n  # Average target angle
 
-            if self.waypoint_in_range(lat=goal_waypoint.lat, long=goal_waypoint.long, radius=radius):
-                # print("Current ", self.waypoint)
-                print("Reached ", goal_waypoint)
+            # Check if waypoint is within specified radius
+            if self.waypoint_in_range(goal_waypoint=self.waypoints[0], radius=radius):
+                if verbose:
+                    print("Reached ", self.waypoints[0])
                 self.waypoints.pop(0)  # remove waypoint because it has been sufficiently reached
 
-            # print(target_angle)
             return target_angle
 
         else:  # If there are no more waypoints in the list
-            print("no more wayppoints")
+            if verbose:
+                print("no more wayppoints")
             return 0
-
-    def read_waypoints(self, filepath: str = None) -> list:
-        from actor_ros.actor_tools import YAMLReader
-
-        yml = YAMLReader(file_path=filepath)
-        yml.read()
-
-        waypoint_list = []
-        print(yml.params.waypoint0)
-        # for waypoint in yml.params:
-        #     print(type(waypoint))
-        #     waypoint_list.append(Waypoint(lat=waypoint.lat, long=waypoint.lon, current_heading=waypoint.heading))
-        for i in range(len(yml.params)):
-            waypoint = eval(f"yml.params.waypoint{i}")
-            print(waypoint)
-            waypoint_list.append(
-                Waypoint(lat=waypoint[0].lat, long=waypoint[1].lon, current_heading=waypoint[2].heading)
-            )
-
-        return waypoint_list
-
-    # TODO: Add methods from igvc_python but make them more Pythonic a.k.a intuitive and easy to use
 
     # End of Class ----------------------------------------------------------------------------------------------------
 
@@ -403,7 +399,7 @@ class ActorScriptTools:
 class Waypoint:
     """Class for waypoint lat and long operations"""
 
-    def __init__(self, lat: float = None, long: float = None, current_heading: float = None) -> None:
+    def __init__(self, lat: float = None, long: float = None, heading: float = None) -> None:
         """Sets waypoint lat and long (decimal degrees) and current heading (degrees)"""
 
         if lat is None or long is None:
@@ -412,17 +408,17 @@ class Waypoint:
 
         self.lat = lat
         self.long = long
-        self.current_heading = current_heading if current_heading is not None else 0
+        self.heading = heading if heading is not None else 0
 
     def __str__(self) -> str:
-        return f"Waypoint: {self.lat:.6f}, {self.long:.6f}, {self.current_heading:.3f}"
+        return f"Waypoint: {self.lat:.6f}, {self.long:.6f}, {self.heading:.3f}"
 
-    def update(self, lat: float, long: float, current_heading: float) -> None:
+    def update(self, lat: float, long: float, heading: float) -> None:
         """Sets waypoint lat and long (decimal degrees)"""
 
         self.lat = lat
         self.long = long
-        self.current_heading = current_heading
+        self.heading = heading
 
     def distance_to(self, goal: "Waypoint") -> float:
         """Returns Haversine distance between two waypoints in meters"""
@@ -444,7 +440,7 @@ class Waypoint:
 
         return 2 * radius_earth * asin(sqrt(a))
 
-    def bearing_with(self, goal: "Waypoint") -> float:
+    def absolute_bearing_with(self, goal: "Waypoint") -> float:
         """Returns absolute bearing between two waypoints in degrees"""
 
         from math import atan2, cos, degrees, radians, sin
@@ -453,34 +449,23 @@ class Waypoint:
         lambda_1 = radians(self.long)
         phi_2 = radians(goal.lat)
         lambda_2 = radians(goal.long)
-
         delta_lambda = lambda_2 - lambda_1
-
         x = sin(delta_lambda) * cos(phi_2)
         y = cos(phi_1) * sin(phi_2) - sin(phi_1) * cos(phi_2) * cos(delta_lambda)
 
-        return (degrees(atan2(x, y)) + 360) % 360
+        return (degrees(atan2(x, y)) + 360) % 360  # Normalized to 0-360
 
     def relative_bearing_with(self, goal: "Waypoint") -> float:
         """Returns the relative bearing from the current heading to the goal waypoint in degrees"""
 
-        absolute_bearing = self.bearing_with(goal)
-        # abs_bearing_adj = absolute_bearing - 180
-        # curr_heading_adj = self.current_heading - 180
-        # flip = 1
-        # if abs_bearing_adj > 0 and curr_heading_adj < 0:
-        #     curr_heading_adj *= -1
-        # elif abs_bearing_adj < 0 and curr_heading_adj > 0:
-        #     curr_heading_adj *= -1
-        #     flip = -1
+        relative_bearing = self.heading - self.absolute_bearing_with(goal)  # degrees
 
-        relative_bearing = self.current_heading - absolute_bearing
+        # Normalize to 0 - 360 only when over -180 or 180
         if relative_bearing < -180:
             relative_bearing += 360
         elif relative_bearing > 180:
             relative_bearing -= 360
 
-        # print("relative:")
-        # print(absolute_bearing, relative_bearing)
-
         return relative_bearing
+
+    # End of Class ----------------------------------------------------------------------------------------------------

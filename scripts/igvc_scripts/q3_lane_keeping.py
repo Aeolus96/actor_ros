@@ -39,7 +39,7 @@ estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 actor.print_highlights("Lane keeping until barrel is detected")
 
 # Pass functions to drive_for() to drive with function based steering until a custom end condition is met.
-actor.drive_for(speed=3, angle=actor.lane_center, function=actor.lidar_3d, max_distance=3.5)
+actor.drive_for(speed=3, angle=actor.lane_center, end_function=actor.lidar_3d, max_distance=3.5)
 
 actor.stop_vehicle(duration=5.0)
 

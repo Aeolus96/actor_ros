@@ -355,7 +355,10 @@ class ScriptPlayer:
         """Read output stream and add lines into output_text
         stream is direct input stream from stdout or stderr"""
 
+        import os
+
         try:
+            print(f"Process Group ID: {os.getpgid(self.process.pid)}")
             while self.process.poll() is None:
                 line = self.process.stdout.readline()
                 print(line, end="")  # Display the line in the shell
@@ -416,7 +419,7 @@ class ScriptPlayer:
 class YAMLReader:
     """Read YAML files and store the data in an attribute style access object.
     This only reads at instance creation"""
-    
+
     import os
 
     def __init__(self, file_path):
@@ -425,14 +428,11 @@ class YAMLReader:
 
         self.file_path = file_path
         self.params = munch.Munch()
-            
 
     def read(self, file_path=None):
-        
         import yaml
         from munch import munchify
 
-        
         if file_path is None:
             file_path = self.file_path
         with open(file_path, "r") as file:

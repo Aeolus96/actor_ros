@@ -40,7 +40,7 @@ actor.drive_for(speed=1.5, angle=0.0, speed_distance=3)
 actor.drive_for(speed=1.5, angle=35.0, speed_distance=6)
 
 #drive until at barrel
-actor.drive_for(speed=1.5, angle=0.0, function=actor.lidar3d, max_distance=3)
+actor.drive_for(speed=1.5, angle=0.0, end_function=actor.lidar3d, max_distance=3)
 
 actor.stop_vehicle(duration=5.0)
 

@@ -13,19 +13,21 @@ actor = actor_ros.scripting_tools.ActorScriptTools()  # ACTor Scripting Tools in
 
 actor.print_title("Testing - Following Waypoints")
 
-actor.print_highlights("Go Forward")
+# Load waypoints from YAML file
+actor.waypoints = actor.read_waypoints(file_path="/home/dev/waypoint_test.yaml")
 
 estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
-actor.waypoints = actor.read_waypoints(filepath="/home/dev/waypoint_test.yaml")
+# Follow waypoints until last waypoint is reached
 actor.drive_for(
     speed=5.0,
     angle=actor.follow_waypoints,
-    function = actor.waypoint_in_range,
-    lat = actor.waypoints[-1].lat, long = actor.waypoints[-1].long, radius = 1.0
+    angle_kwargs={"radius": 1.5, "gain": 1.0},
+    end_function=actor.waypoint_in_range,
+    end_function_kwargs={"goal_waypoint": actor.waypoints[-1], "radius": 3.0},
 )
-# actor.drive_for(speed=1.5, angle=0.0, duration=8.0)
+# actor.drive_for(speed=1.5, angle=0.0, duration=8.0) # debug line to check dbw
 
-actor.stop_vehicle(duration=5.0)
+actor.stop_vehicle(duration=5.0, using_brakes=True)
 
 actor.print_highlights("Testing - Following Waypoints Complete!")

@@ -46,7 +46,7 @@ actor.drive_for(speed=-0.8, angle=44.0, speed_distance=3.1)
 # actor.drive_for(speed=-1.2, angle=0.0, speed_distance=0.05)
 
 #reverse until rear barrel is 2m away
-actor.drive_for(speed=-1.2, angle=0.0, function=actor.lidar3d, lidar_zone='rear', max_distance=2)
+actor.drive_for(speed=-1.2, angle=0.0, end_function=actor.lidar3d, lidar_zone='rear', max_distance=2)
 
 actor.shift_gear("DRIVE")
 

@@ -39,7 +39,7 @@ actor.print_highlights("Go Forward")
 
 estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
-actor.drive_for(speed=3, angle=actor.lane_center, function=actor.yolo_look_for, person=True, size=120)
+actor.drive_for(speed=3, angle=actor.lane_center, end_function=actor.yolo_look_for, person=True, size=120)
 
 actor.drive_for(speed=3, angle=25, speed_distance=3)
 
