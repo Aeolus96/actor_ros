@@ -416,18 +416,23 @@ class ScriptPlayer:
 class YAMLReader:
     """Read YAML files and store the data in an attribute style access object.
     This only reads at instance creation"""
+    
+    import os
 
     def __init__(self, file_path):
         """Initialize the YAML Reader"""
+        import munch
 
         self.file_path = file_path
-        self.params = None
+        self.params = munch.Munch()
+            
 
     def read(self, file_path=None):
+        
         import yaml
         from munch import munchify
 
-        self.params = None
+        
         if file_path is None:
             file_path = self.file_path
         with open(file_path, "r") as file:
@@ -436,7 +441,6 @@ class YAMLReader:
                 self.params = munchify(yaml.safe_load(file))
             except Exception as e:
                 print(f"Failed to load YAML file: {e}")
-                self.params = None
 
     def write(self, file_path=None):
         """Write the params attribute to a YAML file"""

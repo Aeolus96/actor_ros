@@ -116,3 +116,9 @@ subscribers:
   - topic: /blob/cmd
     msg_file: geometry_msgs.msg
     msg_type: Twist
+  - topic: /front_2d_lidar/closest_object
+    msg_file: std_msgs.msg
+    msg_type: Float64
+  - topic: /rear_2d_lidar/closest_object
+    msg_file: std_msgs.msg
+    msg_type: Float64

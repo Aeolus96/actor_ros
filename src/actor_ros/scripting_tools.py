@@ -40,13 +40,14 @@ class ActorScriptTools:
         self.status = actor_tools.ActorStatusReader()  # Read ACTor Status messages
         # Set Initial waypoint
         self.waypoint = Waypoint(self.status.latitude, self.status.longitude, self.status.heading)
+        self.waypoints = None  # List of waypoints
 
         # Import IGVC Parameters from YAML file -------------------------------
         self.package_directory = rospkg.RosPack().get_path("actor_ros")
         file_name = "igvc_params.yaml" if cfg_file_name is None else cfg_file_name
         file_path = self.package_directory + "/cfg/" + file_name
-        cfg_file = actor_tools.YAMLReader()
-        cfg_file.read(file_path=file_path)
+        cfg_file = actor_tools.YAMLReader(file_path)
+        cfg_file.read()
         rospy.sleep(1)  # Wait for parameters to be loaded
 
         # Make Publishers -----------------------------------------------------
@@ -295,18 +296,31 @@ class ActorScriptTools:
         lidar_zone: str = "front",
         min_distance: float = 0.1,
         max_distance: float = 9.9,
+        verbose: bool = False,
     ) -> bool:
         """Uses a combination of 2D and 3D LiDAR to determine whether an object exists within the specified zone and range.
         lidar_zone: 'front' and 'rear' are accepted"""
 
+        within_range = False
+
         if lidar_zone == "front":
             front_3d_adj = self.msg_region_front_closest.data - 1.2
-            return (min_distance < front_3d_adj < max_distance) or (
-                min_distance < self.msg_front_2d_lidar_closest_object < max_distance
+            within_range = (min_distance < front_3d_adj < max_distance) or (
+                min_distance < self.msg_front_2d_lidar_closest_object.data < max_distance
             )
 
         if lidar_zone == "rear":
-            return min_distance < self.msg_rear_2d_lidar_closest_object < max_distance
+            within_range = min_distance < self.msg_rear_2d_lidar_closest_object.data < max_distance
+
+        if verbose:
+            print(
+                f"T3D Distance: {front_3d_adj:.3f}",
+                f"F2D Distance: {self.msg_front_2d_lidar_closest_object.data:.3f}",
+                f"R2D Distance: {self.msg_rear_2d_lidar_closest_object.data:.3f}",
+                f"Within Range: {within_range}",
+            )
+
+        return within_range
 
     def lane_change(self, left: bool = False, right: bool = False):  # TODO
         """Changes lane based on left and right inputs"""
@@ -328,27 +342,58 @@ class ActorScriptTools:
         distance = self.waypoint.distance_to(goal_waypoint)
         return distance < radius  # or distance is within radius
 
-    def follow_waypoints(self, waypoints: list = None, radius: float = 3.0) -> float:
+    def follow_waypoints(self, radius: float = 1.5, gain: float = 1.0) -> float:
         """Returns the angle needed to follow the waypoint trajectory using a list of Waypoints(class). Make sure the list is a defined object and ordered correctly"""
 
-        if waypoints is None:
+        if self.waypoints is None:
             print("Please specify a list of waypoints")
             return 0
 
-        if len(waypoints) > 0:  # If there are waypoints available
+        num_waypoints = len(self.waypoints)
+
+        if num_waypoints > 0:  # If there are waypoints available
             self.update_current_waypoint()
-            goal_waypoint = waypoints[0]
-            target_angle = self.waypoint.relative_bearing_with(goal_waypoint)
+            goal_waypoint = self.waypoints[0]
+
+            n = min(10, num_waypoints)
+            target_sum = 0
+
+            for i in range(n):
+                target_sum += self.waypoint.relative_bearing_with(self.waypoints[i]) * gain
+
+            target_angle = target_sum / n
 
             if self.waypoint_in_range(lat=goal_waypoint.lat, long=goal_waypoint.long, radius=radius):
-                print("Current ", self.waypoint)
+                # print("Current ", self.waypoint)
                 print("Reached ", goal_waypoint)
-                waypoints.pop(0)  # remove waypoint because it has been sufficiently reached
+                self.waypoints.pop(0)  # remove waypoint because it has been sufficiently reached
 
+            # print(target_angle)
             return target_angle
 
         else:  # If there are no more waypoints in the list
+            print("no more wayppoints")
             return 0
+
+    def read_waypoints(self, filepath: str = None) -> list:
+        from actor_ros.actor_tools import YAMLReader
+
+        yml = YAMLReader(file_path=filepath)
+        yml.read()
+
+        waypoint_list = []
+        print(yml.params.waypoint0)
+        # for waypoint in yml.params:
+        #     print(type(waypoint))
+        #     waypoint_list.append(Waypoint(lat=waypoint.lat, long=waypoint.lon, current_heading=waypoint.heading))
+        for i in range(len(yml.params)):
+            waypoint = eval(f"yml.params.waypoint{i}")
+            print(waypoint)
+            waypoint_list.append(
+                Waypoint(lat=waypoint[0].lat, long=waypoint[1].lon, current_heading=waypoint[2].heading)
+            )
+
+        return waypoint_list
 
     # TODO: Add methods from igvc_python but make them more Pythonic a.k.a intuitive and easy to use
 
@@ -382,7 +427,7 @@ class Waypoint:
     def distance_to(self, goal: "Waypoint") -> float:
         """Returns Haversine distance between two waypoints in meters"""
 
-        from math import sin, cos, sqrt, asin, radians
+        from math import asin, cos, radians, sin, sqrt
 
         radius_earth = 6371000  # meters
 
@@ -402,7 +447,7 @@ class Waypoint:
     def bearing_with(self, goal: "Waypoint") -> float:
         """Returns absolute bearing between two waypoints in degrees"""
 
-        from math import sin, cos, atan2, radians, degrees
+        from math import atan2, cos, degrees, radians, sin
 
         phi_1 = radians(self.lat)
         lambda_1 = radians(self.long)
@@ -420,6 +465,22 @@ class Waypoint:
         """Returns the relative bearing from the current heading to the goal waypoint in degrees"""
 
         absolute_bearing = self.bearing_with(goal)
-        relative_bearing = (absolute_bearing - self.current_heading + 360) % 360
+        # abs_bearing_adj = absolute_bearing - 180
+        # curr_heading_adj = self.current_heading - 180
+        # flip = 1
+        # if abs_bearing_adj > 0 and curr_heading_adj < 0:
+        #     curr_heading_adj *= -1
+        # elif abs_bearing_adj < 0 and curr_heading_adj > 0:
+        #     curr_heading_adj *= -1
+        #     flip = -1
+
+        relative_bearing = self.current_heading - absolute_bearing
+        if relative_bearing < -180:
+            relative_bearing += 360
+        elif relative_bearing > 180:
+            relative_bearing -= 360
+
+        # print("relative:")
+        # print(absolute_bearing, relative_bearing)
 
         return relative_bearing
