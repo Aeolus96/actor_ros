@@ -1,5 +1,9 @@
 <launch>
 
+    <!-- Global Front Facing Camera topic -->
+    <arg name="front_camera_topic" default="/cam_pub/image_raw" />
+
+    
     <!-- actor_estop ...................................................... -->
     <include file="$(find actor_estop)/launch/core.launch" />
     <!-- .................................................................. -->
@@ -46,21 +50,33 @@
 
 
     <!-- USB Camera: Starvis 1 Arducam - using Simple Camera Publisher .....-->
-    <node name="cam_pub" pkg="simple_camera_publisher" type="cam_pub" respawn="true" respawn_delay="10" output="screen">
-        <!-- Use device path from /dev/v4l/by-id/ -->
-        <param name="source" type="string"
-            value="/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._USB_2.0_Camera_SN0001-video-index0" />
-    </node>
+    <!-- <node name="cam_pub" pkg="simple_camera_publisher" type="cam_pub" respawn="true"
+    respawn_delay="10" output="screen"> -->
+    <!-- Use device path from /dev/v4l/by-id/ -->
+    <!-- <param name="source" type="string"
+            value="/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._USB_2.0_Camera_SN0001-video-index0" /> -->
+    <!-- </node> -->
     <!-- .................................................................. -->
 
 
-    <!-- USB Camera: Starvis 1 Arducam - using Simple Camera Publisher .....-->
+    <!-- IP Camera: RouteCAM CU22 - using IP Camera Publisher ..............-->
+    <include file="$(find ip_camera_publisher)/launch/route_cam.launch" >
+        <arg name="rtsp_stream_url" value="rtsp://192.168.0.5:5005/routecam" />
+        <arg name="image_topic" value="$(arg front_camera_topic)" />
+        <arg name="image_scale" value="1.0" />
+    </include>
+    <!-- .................................................................. -->
+
+
+    <!-- USB Camera: - using Simple Camera Publisher .....-->
     <group ns="bumper_camera">
-        <node name="cam_pub" pkg="simple_camera_publisher" type="cam_pub" respawn="true" respawn_delay="10" output="screen">
+        <node name="cam_pub" pkg="simple_camera_publisher" type="cam_pub" respawn="true"
+            respawn_delay="10" output="screen">
             <!-- Use device path from /dev/v4l/by-id/ -->
-            <param name="source" type="string" value="/dev/v4l/by-id/usb-KYE_Systems_Corp._USB_Camera_200901010001-video-index0" />
+            <param name="source" type="string"
+                value="/dev/v4l/by-id/usb-KYE_Systems_Corp._USB_Camera_200901010001-video-index0" />
         </node>
-        <node name="bumper_camera" pkg="actor_bumper_camera" type="bumper_camera.py"/>
+        <node name="bumper_camera" pkg="actor_bumper_camera" type="bumper_camera.py" />
     </group>
     <!-- .................................................................. -->
 
@@ -128,7 +144,7 @@
     <!-- Route-YoloV8 ......................................................-->
     <include file="$(find ltu_actor_route_yolov8_detector)/launch/yolov8_detector.launch">
         <!-- Input Image Topic: USB Camera -->
-        <param name="imgtopic_name" type="string" value="/cam_pub/image_raw" />
+        <param name="imgtopic_name" type="string" value="$(arg front_camera_topic)" />
         <!-- Input Image Topic: PoE Camera -->
         <!-- <param name="imgtopic_name" type="string" value="/route_cam_pub/image_raw" /> -->
     </include>
@@ -137,7 +153,7 @@
 
     <!-- Route-Blob ........................................................-->
     <node pkg="ltu_actor_route_blob" type="blob" name="blob">
-        <param name="input" type="string" value="/cam_pub/image_raw" />
+        <param name="input" type="string" value="$(arg front_camera_topic)" />
         <!-- Pre-set values -->
         <!-- Change in dynamic reconfigure and then save .yaml to edit this later -->
         <param name="enable_drive" type="bool" value="true" />
