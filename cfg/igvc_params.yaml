@@ -116,9 +116,14 @@ subscribers:
   - topic: /blob/cmd
     msg_file: geometry_msgs.msg
     msg_type: Twist
+  #2D LiDAR Topics
   - topic: /front_2d_lidar/closest_object
     msg_file: std_msgs.msg
     msg_type: Float64
   - topic: /rear_2d_lidar/closest_object
     msg_file: std_msgs.msg
     msg_type: Float64
+  #Front Bumper Cam
+  - topic: /bumper_camera/bumper_line_detected
+    msg_file: std_msgs.msg
+    msg_type: Bool

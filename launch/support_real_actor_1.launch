@@ -3,7 +3,7 @@
     <!-- Global Front Facing Camera topic -->
     <arg name="front_camera_topic" default="/cam_pub/image_raw" />
 
-    
+
     <!-- actor_estop ...................................................... -->
     <include file="$(find actor_estop)/launch/core.launch" />
     <!-- .................................................................. -->
@@ -16,6 +16,13 @@
 
     <!-- rqt_reconfigure aka Dynamic Reconfigure GUI .......................-->
     <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_console" args="-t" />
+    <!-- .................................................................. -->
+
+
+    <!-- WLED - Lighting Controller ....................................... -->
+    <include file="$(find actor_status_display)/launch/display.launch">
+        <arg name="wled_device_address" value="192.168.0.4" />
+    </include>
     <!-- .................................................................. -->
 
 
@@ -50,21 +57,21 @@
 
 
     <!-- USB Camera: Starvis 1 Arducam - using Simple Camera Publisher .....-->
-    <!-- <node name="cam_pub" pkg="simple_camera_publisher" type="cam_pub" respawn="true"
-    respawn_delay="10" output="screen"> -->
+    <node name="cam_pub" pkg="simple_camera_publisher" type="cam_pub" respawn="true"
+    respawn_delay="10" output="screen">
     <!-- Use device path from /dev/v4l/by-id/ -->
-    <!-- <param name="source" type="string"
-            value="/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._USB_2.0_Camera_SN0001-video-index0" /> -->
-    <!-- </node> -->
+    <param name="source" type="string"
+            value="/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._USB_2.0_Camera_SN0001-video-index0" />
+    </node>
     <!-- .................................................................. -->
 
 
     <!-- IP Camera: RouteCAM CU22 - using IP Camera Publisher ..............-->
-    <include file="$(find ip_camera_publisher)/launch/route_cam.launch" >
+    <!-- <include file="$(find ip_camera_publisher)/launch/route_cam.launch">
         <arg name="rtsp_stream_url" value="rtsp://192.168.0.5:5005/routecam" />
         <arg name="image_topic" value="$(arg front_camera_topic)" />
         <arg name="image_scale" value="1.0" />
-    </include>
+    </include> -->
     <!-- .................................................................. -->
 
 

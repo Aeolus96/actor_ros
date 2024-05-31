@@ -36,36 +36,30 @@ actor = actor_ros.scripting_tools.ActorScriptTools()  # ACTor Scripting Tools in
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-actor.print_title("Q3 - Lane Keeping")
+actor.print_title("Q5 - Left Turn")
 
 # estop.reset()  # Reset E-Stop if needed - Preferably this should done manually via the GUI
 estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
-actor.print_highlights("Lane keeping until barrel is detected")
+actor.print_highlights("Intersection")
 
 # Pass functions to drive_for() to drive with function based steering until a custom end condition is met.
-actor.drive_for(speed=3.0, angle=actor.lane_center, end_function=actor.yolo_look_for,  stop_sign=True, size=100)
+# actor.drive_for(speed=4.0, angle=actor.lane_center, speed_distance=2.0)
+
+actor.print_highlights("Turning Left")
+
+actor.drive_for(speed=4.0, angle=0.0, speed_distance=4.0)
+
+actor.drive_for(speed=4.0, angle=25.0, speed_distance=8.0)
+
+actor.print_highlights("Stopping at Barrel")
+
+actor.drive_for(
+    speed=4.0, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 2.75}
+)
 
 actor.stop_vehicle(duration=5.0, using_brakes=True)
 
-actor.drive_for(speed=3.0, angle=0.0, speed_distance=5.0)
-
-actor.drive_for(speed=3.0, angle=25.0, speed_distance=8.0)
-
-actor.drive_for(speed=3.0, angle=actor.lane_center, end_function=actor.lidar_3d, max_distance=3.5)
-
-actor.stop_vehicle(duration=5.0)
-
-actor.print_highlights("Q3 - Lane Keeping Complete!")
-
-
-# Ex: if needed disable or estop can be triggered anywhere
-
-# estop.disable_dbw()  # Disable vehicle control via ROS - one time message
-# # NOTE: ^ This is not an E-Stop. It just disables vehicle control
-# # OR
-# estop.trigger_e_stop()
-# # OR
-# estop()  # same as above
+actor.print_highlights("Q5 - Left Turn Complete!")
 
 # ---------------------------------------------------------------------------------------------------------------------

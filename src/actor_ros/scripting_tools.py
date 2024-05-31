@@ -88,7 +88,7 @@ class ActorScriptTools:
         print(f"{' ' * padding}{title.upper()}{' ' * padding}")
         print("=" * width)
 
-    def stop_vehicle(self, using_brakes: bool = False, duration: float = 3.0) -> None:
+    def stop_vehicle(self, using_brakes: bool = False, duration: float = 3.0, softness : float = 1.5) -> None:
         """Stop the vehicle by publishing either a zero twist message or a brake pedal command
         and wait for duration seconds"""
         from dbw_polaris_msgs.msg import BrakeCmd
@@ -106,7 +106,7 @@ class ActorScriptTools:
 
             # Reach target pedal value by increasing pedal value for duration seconds
             brake_target = 0.4  # target brake pedal value
-            increment = 2 * brake_target / rate_hz  # increment fully in 2 seconds
+            increment = softness * brake_target / rate_hz  # increment fully in 2 seconds
 
             while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
                 msg.pedal_cmd = min(brake_target, msg.pedal_cmd + increment)  # Increase pedal value
@@ -153,9 +153,9 @@ class ActorScriptTools:
     def drive(
         self,
         speed=0.0,
-        speed_kwargs: dict = None,
+        speed_kwargs: dict = {},
         angle=0.0,
-        angle_kwargs: dict = None,
+        angle_kwargs: dict = {},
     ) -> None:
         """Publishes a twist message to drive the vehicle.\n
         It allows optional function-based speed and angle control.\n
@@ -165,9 +165,9 @@ class ActorScriptTools:
         from geometry_msgs.msg import Twist  # ROS Messages
 
         if callable(speed):  # Use function-based speed control
-            speed = speed(**(speed_kwargs if speed_kwargs is not None else {}))
+            speed = speed(**speed_kwargs)
         if callable(angle):  # Use function-based angle control
-            angle = angle(**(angle_kwargs if angle_kwargs is not None else {}))
+            angle = angle(**angle_kwargs)
 
         # Use input speed and current gear to determine if the vehicle should shift gears
         if speed > 0.0:
@@ -193,14 +193,14 @@ class ActorScriptTools:
     def drive_for(
         self,
         speed=0.0,
-        speed_kwargs: dict = None,
+        speed_kwargs: dict = {},
         angle=0.0,
-        angle_kwargs: dict = None,
+        angle_kwargs: dict = {},
         speed_distance: float = None,
         gps_distance: float = None,
         duration: float = None,
         end_function=None,
-        end_function_kwargs: dict = None,
+        end_function_kwargs: dict = {},
     ) -> None:
         """Publishes a twist message to drive the vehicle for a specified duration or distance.\n
         Use ONLY ONE conditional argument: speed_distance or gps_distance or duration or func.\n
@@ -238,11 +238,9 @@ class ActorScriptTools:
             while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
                 self.drive(speed, speed_kwargs, angle, angle_kwargs)
                 rate.sleep()
-
+        
         elif callable(end_function):  # Use function-based end condition
-            while not rospy.is_shutdown() and not end_function(
-                **(end_function_kwargs if end_function_kwargs is not None else {})
-            ):
+            while not rospy.is_shutdown() and not end_function(**end_function_kwargs):
                 self.drive(speed, speed_kwargs, angle, angle_kwargs)
                 rate.sleep()
 
@@ -304,7 +302,7 @@ class ActorScriptTools:
     def lidar_3d(
         self,
         lidar_zone: str = "front",
-        min_distance: float = 0.1,
+        min_distance: float = 0.5,
         max_distance: float = 9.9,
         verbose: bool = False,
     ) -> bool:

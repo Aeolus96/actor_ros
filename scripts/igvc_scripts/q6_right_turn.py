@@ -36,33 +36,27 @@ actor = actor_ros.scripting_tools.ActorScriptTools()  # ACTor Scripting Tools in
 # ---------------------------------------------------------------------------------------------------------------------
 # ---------------------------------------------------------------------------------------------------------------------
 
-
-# Custom end condition as a function just for this script. Functions like these can added to module as needed...
-def stop_at_stopsign() -> bool:
-    distance = actor.msg_lidar_zone_1_closest.data
-    return 0 < distance < 3.0 #NOTE: these values are untested
-
-
-# ---------------------------------------------------------------------------------------------------------------------
 actor.print_title("Q6 - Right Turn")
 
-# estop.reset()  # Reset E-Stop if needed - Preferably this should done manually via the GUI
 estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
 actor.print_highlights("Lane keeping until barrel is detected")
 
-# Pass functions to drive_for() to drive with function based steering until a custom end condition is met.
-actor.drive_for(speed=3.0, angle=actor.lane_center, end_function=actor.yolo_look_for, stop_sign=True, size=100)
+actor.print_highlights("Intersection")
 
-actor.stop_vehicle(duration=5, using_brakes=True)
+# actor.drive_for(speed=3.0, angle=actor.lane_center, end_function=actor.yolo_look_for, stop_sign=True, size=100)
 
-actor.drive_for(speed=3.0, angle=0.0, speed_distance=2.0)
+actor.print_highlights("Turning Right")
 
-actor.drive_for(speed=3.0, angle=-30.0, speed_distance=7.0)
+actor.drive_for(speed=4.0, angle=0.0, speed_distance=0.75)
 
-actor.drive_for(speed=3.0, angle=actor.lane_center, end_function=actor.lidar_3d, max_distance=3.5)
+actor.drive_for(speed=4.0, angle=-30.0, speed_distance=7.0)
 
-actor.stop_vehicle(duration=5.0)
+actor.drive_for(
+    speed=4.0, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 3.0}
+)
+
+actor.stop_vehicle(duration=5.0, using_brakes=True)
 
 actor.print_highlights("Q3 - Lane Keeping Complete!")
 

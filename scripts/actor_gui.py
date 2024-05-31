@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import socket
 import sys
 import time  # Time library
 
@@ -7,7 +8,6 @@ import actor_ros.actor_tools as actor_tools  # ACTor specific utility functions
 import numpy as np
 import rospkg  # ROS Package Utilities
 from nicegui import ui  # NiceGUI library
-import socket
 
 # ROS I/O -------------------------------------------------------------------------------------------------------------
 # NOTE: using a rospy node should be avoided in this python script.
@@ -329,4 +329,4 @@ with ui.page_sticky(position="bottom", x_offset=20, y_offset=20):
 
 # Run GUI -------------------------------------------------------------------------------------------------------------
 # NOTE: Needs to be the last element to run the GUI.
-ui.run(dark=True, show=False)
+ui.run(dark=True, show=False, port=8889)

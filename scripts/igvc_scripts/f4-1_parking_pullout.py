@@ -29,19 +29,30 @@ actor = actor_ros.scripting_tools.ActorScriptTools()  # ACTor Scripting Tools in
 # ---------------------------------------------------------------------------------------------------------------------
 # ---------------------------------------------------------------------------------------------------------------------
 
-actor.print_title("F4.1 Parking Pull Out")
-
-#actor.print_highlights("Go Forward")
-
 estop.enable_dbw()  # Enable vehicle control via ROS - one time message
+# Pull Out To Right
+# actor.print_title("F4.1 Parking Pull Out Right")
 
-actor.drive_for(speed=1.5, angle=0.0, speed_distance=3)
+# actor.drive_for(speed=1.5, angle=0.0, speed_distance=0.75)
 
-actor.drive_for(speed=1.5, angle=35.0, speed_distance=6)
+# actor.drive_for(speed=3.0, angle=-35.0, speed_distance=6.0)
 
-#drive until at barrel
-actor.drive_for(speed=1.5, angle=0.0, end_function=actor.lidar3d, max_distance=3)
+# actor.drive_for(
+#     speed=1.5, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 3.0}
+# )
 
-actor.stop_vehicle(duration=5.0)
+# actor.stop_vehicle(duration=5.0, using_brakes=True)
+
+actor.print_title("F4.1 Parking Pull Out Left")
+
+actor.drive_for(speed=2.0, angle=0.0, speed_distance=2.0)
+
+actor.drive_for(speed=3.0, angle=27.0, speed_distance=6.0)
+
+actor.drive_for(
+    speed=1.5, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 3.0}
+)
+
+actor.stop_vehicle(duration=5.0, using_brakes=True)
 
 actor.print_highlights("Parking Pull Out Complete!")

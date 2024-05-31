@@ -28,28 +28,67 @@ actor = actor_ros.scripting_tools.ActorScriptTools()  # ACTor Scripting Tools in
 # ---------------------------------------------------------------------------------------------------------------------
 # ---------------------------------------------------------------------------------------------------------------------
 
-actor.print_title("F4.3 Parallel Parking")
+#actor.print_title("F4.3 Parallel Parking")
 
+#actor.print_highlights("Go Forward")
+
+# estop.enable_dbw()  # Enable vehicle control via ROS - one time message
+
+# actor.shift_gear("REVERSE")
+
+#actor.drive_for(speed=-1.5, angle=0.0, speed_distance=0.1)
+
+# actor.drive_for(speed=-1.5, angle=-40.0, speed_distance=1.8)
+# actor.drive_for(speed=-1.5, angle=0.0, speed_distance=0.8)
+
+# actor.drive_for(speed=-1.0, angle=40.0, speed_distance=3.0)
+# actor.stop_vehicle(duration=4.0, using_brakes='True')
+
+# actor.shift_gear("DRIVE")
+# actor.drive_for(speed=1.0, angle=-40.0, speed_distance=1.0)
+
+# actor.drive_for(speed=-1.2, angle=0.0, speed_distance=0.05)
+
+#reverse until rear barrel is 2m away
+# actor.drive_for(speed=-1.2, angle=0.0, end_function=actor.lidar3d, lidar_zone='rear', max_distance=2)
+#actor.drive_for(speed=-1.2, angle=0.0, end_function=actor.lidar3d,end_function_kwargs={"lidar_zone": 'rear', "max_distance": 2})
+
+
+# actor.stop_vehicle(duration=0.1)
+
+# actor.stop_vehicle(duration=5.0, using_brakes='True')
+
+
+#actor.print_highlights("Parallel Parking Right Complete!")
+#####################################################################
+# Parallel parking Left
 #actor.print_highlights("Go Forward")
 
 estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
 actor.shift_gear("REVERSE")
 
-actor.drive_for(speed=-1.2, angle=0.0, speed_distance=0.1)
+#actor.drive_for(speed=-1.5, angle=0.0, speed_distance=0.1)
 
-actor.drive_for(speed=-0.9, angle=-40.0, speed_distance=3.3)
-actor.drive_for(speed=-0.9, angle=0.0, speed_distance=0.2)
+actor.drive_for(speed=-1.5, angle=40.0, speed_distance=2.4)
+actor.drive_for(speed=-1.5, angle=0.0, speed_distance=1.0)
 
-actor.drive_for(speed=-0.8, angle=44.0, speed_distance=3.1)
+actor.drive_for(speed=-1.0, angle=-40.0, speed_distance=4.0)
+actor.stop_vehicle(duration=4.0, using_brakes='True')
+
+actor.shift_gear("DRIVE")
+actor.drive_for(speed=1.0, angle=40.0, speed_distance=0.5)
 
 # actor.drive_for(speed=-1.2, angle=0.0, speed_distance=0.05)
 
 #reverse until rear barrel is 2m away
-actor.drive_for(speed=-1.2, angle=0.0, end_function=actor.lidar3d, lidar_zone='rear', max_distance=2)
+# actor.drive_for(speed=-1.2, angle=0.0, end_function=actor.lidar3d, lidar_zone='rear', max_distance=2)
+#actor.drive_for(speed=-1.2, angle=0.0, end_function=actor.lidar3d,end_function_kwargs={"lidar_zone": 'rear', "max_distance": 2})
 
-actor.shift_gear("DRIVE")
 
-actor.stop_vehicle(duration=5.0)
+actor.stop_vehicle(duration=0.1)
 
-actor.print_highlights("Parallel Parking Complete!")
+actor.stop_vehicle(duration=5.0, using_brakes='True')
+
+
+actor.print_highlights("Parallel Parking Right Complete!")
