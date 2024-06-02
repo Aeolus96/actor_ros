@@ -136,7 +136,7 @@ class ActorScriptTools:
                     rate.sleep()
 
             elif sign_distance is not None:
-                brake_target = 0.08
+                brake_target = 0.5
 
                 msg_steering = SteeringCmd()
                 msg_steering.enable = True  # Enable Steering, required 'True' for control via ROS
@@ -149,22 +149,22 @@ class ActorScriptTools:
                 msg_steering.quiet = False
                 msg_steering.count = 0
 
-                msg_throttle = ThrottleCmd()
-                msg_throttle.enable = True
-                msg_throttle.pedal_cmd_type = ThrottleCmd.CMD_PEDAL
-                msg_throttle.pedal_cmd = 0.2
+                # msg_throttle = ThrottleCmd()
+                # msg_throttle.enable = True
+                # msg_throttle.pedal_cmd_type = ThrottleCmd.CMD_PEDAL
+                # msg_throttle.pedal_cmd = 0.2
 
                 while not rospy.is_shutdown() and not self.lidar_3d(lidar_zone="right", max_distance=sign_distance):
                     msg_steering.steering_wheel_angle_cmd = math.radians(self.lane_center())
-                    # msg.pedal_cmd = min(
-                    #     brake_target,
-                    #     (1 / max(self.msg_region_right_closest.data - sign_distance, 0.01)) / 2,
-                    # )
+                    msg.pedal_cmd = min(
+                        brake_target,
+                        (1 / max(self.msg_region_right_closest.data - sign_distance, 0.01)) / 2,
+                    )
 
-                    self.pub_throttle.publish(msg_throttle)
+                    # self.pub_throttle.publish(msg_throttle)
 
-                    msg.pedal_cmd = brake_target
-                    # self.pub_brakes.publish(msg)
+                    # msg.pedal_cmd = brake_target
+                    self.pub_brakes.publish(msg)
                     self.pub_steering.publish(msg_steering)
                     rate.sleep()
 
@@ -186,6 +186,7 @@ class ActorScriptTools:
                 while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
                     msg.pedal_cmd = min(brake_target, msg.pedal_cmd + increment)  # Increase pedal value
                     self.pub_brakes.publish(msg)
+                    self.drive(0.0, 0.0)
                     rate.sleep()
 
         else:  # Send zero twist command to twist publisher

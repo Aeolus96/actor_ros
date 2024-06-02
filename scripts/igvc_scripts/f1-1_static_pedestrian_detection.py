@@ -17,7 +17,7 @@ actor.print_highlights("Detecting Pedestrians")
 
 count = 0
 
-while count < 300:
+while count < 1000:
     actor.yolo_look_for(person=True, size=100)
     count += 1
     rospy.sleep(0.1)

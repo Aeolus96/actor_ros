@@ -1,24 +1,5 @@
 #!/usr/bin/env python3
 
-# Test Q.1 E-Stop Manual
-# 1. Test Goal
-# This test is intended to evaluate safety features of Manual E-Stop.
-# 2. Test Setup
-# The following items shall be placed on the road:
-# o Barrel 1 on the side of the road to indicate a starting point at which vehicle is stationary
-# o Barrel 2 on the side of the road to indicate the position where E-Stop button is pressed
-# o Barrel 3 on the side of the road to indicate the maxim distance for the vehicle to come to the complete
-# stop. The distance between Barrel 2 and Barrel 3 is 14 feet
-# 3. Test Script
-# 1. Begin test run
-# 2. Judge pushes 'start' button
-# 3. Vehicle takes off from full stop at Barrel 1
-# 4. Vehicle maintains the target speed
-# 5. Judge manually pushes E-Stop at Barrel 2
-# 6. Vehicle comes to full stop before reaching Barrel 3.
-# 7. End test run
-# 4. Evaluation
-# Pass Criteria - vehicle is able to stop before reaching Barrel 3
 
 import actor_ros  # ACTor specific utility functions
 import rospy  # ROS Python API
@@ -31,24 +12,105 @@ actor = actor_ros.scripting_tools.ActorScriptTools()  # ACTor Scripting Tools in
 # ---------------------------------------------------------------------------------------------------------------------
 # ---------------------------------------------------------------------------------------------------------------------
 
-# TODO: Add your code from here
+actor.waypoints = actor.read_waypoints(file_path="/home/dev/curved_waypoint.yaml")
 
-actor.print_title("F6.2 Curved Road Lane Change")
 
-actor.print_highlights("Go Forward")
+def case_1():
+    actor.drive_for(
+        speed=3.0,
+        angle=actor.lane_center,
+        end_function=actor.lidar_3d,
+        end_function_kwargs={"max_distance": 5.0},
+    )
+
+    actor.drive_for(speed=3, angle=35, speed_distance=3)
+
+    actor.drive_for(speed=3, angle=0, speed_distance=2)
+
+    actor.drive_for(
+        speed=3.0,
+        angle=actor.lane_center,
+        end_function=actor.lidar_3d,
+        end_function_kwargs={"max_distance": 3.0},
+    )
+
+    actor.stop_vehicle(duration=15.0, using_brakes=True, softness=0.1, brake_distance=3.15)
+
+
+def case_2():
+    actor.drive_for(
+        speed=3.0,
+        angle=actor.lane_center,
+        end_function=actor.lidar_3d,
+        end_function_kwargs={"max_distance": 5.0},
+    )
+    actor.drive_for(speed=3, angle=-30, speed_distance=3)
+    actor.drive_for(speed=3, angle=40, speed_distance=7)
+    actor.drive_for(
+        speed=3.0,
+        angle=actor.lane_center,
+        end_function=actor.waypoint_in_range,
+        end_function_kwargs={"goal_waypoint": actor.waypoints[-1], "radius": 3.0},
+    )
+    actor.drive_for(
+        speed=3.0,
+        angle=actor.lane_center,
+        end_function=actor.lidar_3d,
+        end_function_kwargs={"max_distance": 3.0},
+    )
+    actor.stop_vehicle(duration=15.0, using_brakes=True, softness=0.1, brake_distance=4.0)
+
+
+def case_3():
+    actor.drive_for(
+        speed=3.0,
+        angle=actor.lane_center,
+        end_function=actor.lidar_3d,
+        end_function_kwargs={"max_distance": 5.0},
+    )
+
+    actor.drive_for(speed=3, angle=20, speed_distance=2.25)
+
+    actor.drive_for(speed=3, angle=-40, speed_distance=7)
+
+    actor.drive_for(
+        speed=3.0,
+        angle=actor.lane_center,
+        end_function=actor.lidar_3d,
+        end_function_kwargs={"max_distance": 3.0},
+    )
+
+    actor.stop_vehicle(duration=15.0, using_brakes=True, softness=0.1, brake_distance=2.9)
+
+
+def case_4():
+    actor.drive_for(
+        speed=3.0,
+        angle=actor.lane_center,
+        end_function=actor.lidar_3d,
+        end_function_kwargs={"max_distance": 5.0},
+    )
+
+    actor.drive_for(speed=3, angle=-35, speed_distance=4)
+
+    actor.drive_for(
+        speed=3.0,
+        angle=actor.lane_center,
+        end_function=actor.lidar_3d,
+        end_function_kwargs={"max_distance": 3.0},
+    )
+
+    actor.stop_vehicle(duration=15.0, using_brakes=True, softness=0.1, brake_distance=2.5)
+
+
+actor.print_title("Q3 - Lane Keeping")
 
 estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
-actor.drive_for(speed=1, angle=actor.lane_center, end_function=actor.lidar_detect(lidar_zone=0, max_distance=10.0))
+actor.print_highlights("Lane keeping until barrel is detected")
 
-actor.drive_for(speed=1, angle=1, speed_distance=3)
+case_2()
 
-actor.drive_for(speed=1, angle=-1, speed_distance=5)
+actor.print_highlights("Q3 - Lane Keeping Complete!")
 
-actor.drive_for(speed=1, angle=1, speed_distance=2)
-
-actor.drive_for(speed=1, angle=actor.lane_center, end_function=actor.lidar_detect(lidar_zone=0, max_distance=3.0))
-
-actor.stop_vehicle(duration=5.0)
-
-actor.print_highlights("Curved Lane Change Complete!")
+# ---------------------------------------------------------------------------------------------------------------------

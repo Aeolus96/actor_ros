@@ -39,16 +39,20 @@ actor.print_highlights("Go Forward")
 
 estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
-actor.drive_for(speed=3, angle=actor.lane_center, end_function=actor.yolo_look_for, person=True, size=120)
+actor.drive_for(
+    speed=3, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 10.0}
+)
 
-actor.drive_for(speed=3, angle=25, speed_distance=3)
+actor.drive_for(speed=3, angle=25, speed_distance=2)
 
-actor.drive_for(speed=3, angle=0, speed_distance=2)
+actor.drive_for(speed=3, angle=0, speed_distance=3.5)
 
-actor.drive_for(speed=3, angle=-25, speed_distance=3)
+actor.drive_for(speed=3, angle=-25, speed_distance=2)
 
-actor.drive_for(speed=3, angle=actor.lane_center, speed_distance=50)
+actor.drive_for(
+    speed=3, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 2.5}
+)
 
-actor.stop_vehicle(duration=5.0)
+actor.stop_vehicle(duration=15.0, using_brakes=True, softness=0.1, brake_distance=2.95)
 
 actor.print_highlights("Pedestrian Lane Change Complete!")

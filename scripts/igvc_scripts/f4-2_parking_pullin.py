@@ -40,11 +40,11 @@ estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 # # Pull Out To Right
 actor.print_title("F4.1 Parking Pull Out Right")
 
-actor.drive_for(speed=1.5, angle=0.0, speed_distance=3.8)
+actor.drive_for(speed=1.5, angle=0.0, speed_distance=4.6)
 
 actor.drive_for(speed=1.5, angle=-30.0, speed_distance=6.0)
 
-actor.drive_for(speed=1.5, angle=0.0, speed_distance=0.3)
+actor.drive_for(speed=1.5, angle=0.0, speed_distance=0.5)
 
 # actor.drive_for(
 #     speed=1.5, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 3.0}

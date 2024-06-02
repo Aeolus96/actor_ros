@@ -49,20 +49,35 @@ actor.print_title("F3.3 - Right Turn Intersection")
 # estop.reset()  # Reset E-Stop if needed - Preferably this should done manually via the GUI
 estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
-actor.print_highlights("Lane keeping until barrel is detected")
+actor.print_highlights("Lane keeping until stop sign is detected")
 
-# Pass functions to drive_for() to drive with function based steering until a custom end condition is met.
-actor.drive_for(speed=1.5, angle=actor.lane_center, end_function=actor.lidar_detect(lidar_zone=1, max_distance=5.0))
+# actor.drive_for(
+#     speed=3.0,
+#     angle=actor.lane_center,
+#     end_function=actor.yolo_look_for,
+#     end_function_kwargs={"stop_sign": True, "size": 60},
+# )
 
-actor.stop_vehicle(duration=5.0)
+# actor.drive_for(speed=0.5, angle=actor.lane_center, end_function=white_line)
 
-actor.drive_for(speed=1.5, angle=0.0, speed_distance=6.0)
+actor.drive_for(
+    speed=3,
+    angle=actor.lane_center,
+    end_function=actor.lidar_3d,
+    end_function_kwargs={"lidar_zone": "right", "max_distance": 4.30},
+)
 
-actor.drive_for(speed=1.5, angle=-1.0, speed_distance=5.0)
+actor.stop_vehicle(duration=3.0, using_brakes=True, softness=0.1, sign_distance=1.75)
 
-actor.drive_for(speed=1.5, angle=actor.lane_center, end_function=actor.lidar_detect(lidar_zone=0, max_distance=3.0))
+actor.drive_for(speed=4.0, angle=0.0, speed_distance=0.5)
 
-actor.stop_vehicle(duration=5.0)
+actor.drive_for(speed=4.0, angle=-32.0, speed_distance=6.5)
+
+actor.drive_for(
+    speed=3.0, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 2.0}
+)
+
+actor.stop_vehicle(duration=3.0, using_brakes=True, softness=0.1, brake_distance=2.0)
 
 actor.print_highlights("F3.3 - Right Turn Complete!")
 

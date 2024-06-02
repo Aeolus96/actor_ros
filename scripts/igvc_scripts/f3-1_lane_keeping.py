@@ -31,26 +31,33 @@ estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
 actor.print_highlights("Lane keeping until stop sign is detected")
 
-actor.drive_for(
-    speed=3.0,
-    angle=actor.lane_center,
-    end_function=actor.yolo_look_for,
-    end_function_kwargs={"stop_sign": True, "size": 60},
-)
+# actor.drive_for(
+#     speed=3.0,
+#     angle=actor.lane_center,
+#     end_function=actor.yolo_look_for,
+#     end_function_kwargs={"stop_sign": True, "size": 60},
+# )
 
 # actor.drive_for(speed=0.5, angle=actor.lane_center, end_function=white_line)
 
-actor.stop_vehicle(duration=3.0, using_brakes=True, softness=0.1, sign_distance=1.6)
+actor.drive_for(
+    speed=4,
+    angle=actor.lane_center,
+    end_function=actor.lidar_3d,
+    end_function_kwargs={"lidar_zone": "right", "max_distance": 4.30},
+)
 
-# actor.print_highlights("Lane keeping until barrel is detected")
+actor.stop_vehicle(duration=3.0, using_brakes=True, softness=0.1, sign_distance=1.75)
 
-# actor.drive_for(speed=3.0, angle=0.0, speed_distance=8.0)
+actor.print_highlights("Lane keeping until barrel is detected")
 
-# actor.drive_for(
-#     speed=3.0, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 3.0}
-# )
+actor.drive_for(speed=3.0, angle=0.0, speed_distance=10.0)
 
-# actor.stop_vehicle(duration=5.0, using_brakes=True)
+actor.drive_for(
+    speed=3.0, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 2.75}
+)
+
+actor.stop_vehicle(duration=3.0, using_brakes=True, softness=0.1, brake_distance=2.95)
 
 # actor.print_highlights("F3.1 - Lane Keeping Complete!")
 

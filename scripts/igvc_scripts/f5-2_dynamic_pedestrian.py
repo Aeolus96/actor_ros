@@ -39,12 +39,19 @@ actor.print_highlights("Go Forward")
 
 estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
-actor.drive_for(speed=1, angle=actor.lane_center, end_function=actor.yolo_look_for("person", 100))
+actor.drive_for(
+    speed=3, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 6.0}
+)
 
-actor.drive_for(speed=0, angle=0, end_function=actor.yolo_look_for("person", 150))
+while actor.lidar_3d(max_distance=7):
+    print("waiting")
+    actor.stop_vehicle(duration=2.0, using_brakes=True, softness=0.1, brake_distance=5)
 
-actor.drive_for(speed=1, angle=actor.lane_center, end_function=actor.lidar_detect(lidar_zone=0, max_distance=3.0))
 
-actor.stop_vehicle(duration=5.0)
+actor.drive_for(
+    speed=2.5, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 2.5}
+)
+
+actor.stop_vehicle(duration=15.0, using_brakes=True, softness=0.1, brake_distance=2.95)
 
 actor.print_highlights("Dynamic Pedestrian Complete!")

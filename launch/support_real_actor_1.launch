@@ -117,12 +117,12 @@
         </include>
     </group>
     <!-- Rear LiDAR -->
-    <group ns="rear_2d_lidar">
+    <!-- <group ns="rear_2d_lidar">
         <include file="$(find actor_lidar)/launch/Lidar2D.launch">
             <arg name="serial_port" value="/dev/sensors/hokuyo_H1607593" />
             <arg name="frame_id" value="rear_2d_lidar" />
         </include>
-    </group>
+    </group> -->
     <!-- .................................................................. -->
 
 
