@@ -48,17 +48,17 @@ actor.print_highlights("Intersection")
 
 actor.print_highlights("Turning Left")
 
-actor.drive_for(speed=4.0, angle=0.0, speed_distance=4.0)
+actor.drive_for(speed=3.0, angle=0.0, speed_distance=3.5)
 
-actor.drive_for(speed=4.0, angle=25.0, speed_distance=8.0)
+actor.drive_for(speed=3.0, angle=25.0, speed_distance=7.5)
 
 actor.print_highlights("Stopping at Barrel")
 
 actor.drive_for(
-    speed=4.0, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 2.75}
+    speed=4.0, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 5.0}
 )
 
-actor.stop_vehicle(duration=5.0, using_brakes=True)
+actor.stop_vehicle(duration=15.0, using_brakes=True, softness=0.1, brake_distance=3.0)
 
 actor.print_highlights("Q5 - Left Turn Complete!")
 

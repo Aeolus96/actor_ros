@@ -10,6 +10,14 @@ publishers:
     topic: /vehicle/brake_cmd
     msg_file: dbw_polaris_msgs.msg
     msg_type: BrakeCmd
+  - name: pub_throttle
+    topic: /vehicle/throttle_cmd
+    msg_file: dbw_polaris_msgs.msg
+    msg_type: ThrottleCmd
+  - name: pub_steering
+    topic: /vehicle/steering_cmd
+    msg_file: dbw_polaris_msgs.msg
+    msg_type: SteeringCmd
   - name: pub_gear
     topic: /vehicle/gear_cmd
     msg_file: dbw_polaris_msgs.msg
@@ -77,9 +85,9 @@ subscribers:
   # - topic: /region/right_close
   #   msg_file: std_msgs.msg
   #   msg_type: Float64
-  # - topic: /region/right_closest
-  #   msg_file: std_msgs.msg
-  #   msg_type: Float64
+  - topic: /region/right_closest
+    msg_file: std_msgs.msg
+    msg_type: Float64
   # - topic: /region/right_far
   #   msg_file: std_msgs.msg
   #   msg_type: Float64

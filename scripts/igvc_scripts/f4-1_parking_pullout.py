@@ -47,12 +47,12 @@ actor.print_title("F4.1 Parking Pull Out Left")
 
 actor.drive_for(speed=2.0, angle=0.0, speed_distance=2.0)
 
-actor.drive_for(speed=3.0, angle=27.0, speed_distance=6.0)
+actor.drive_for(speed=3.0, angle=27.0, speed_distance=6.5)
 
 actor.drive_for(
-    speed=1.5, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 3.0}
+    speed=1.5, angle=0.0, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 3.0}
 )
 
-actor.stop_vehicle(duration=5.0, using_brakes=True)
+actor.stop_vehicle(duration=15.0, using_brakes=True)
 
 actor.print_highlights("Parking Pull Out Complete!")

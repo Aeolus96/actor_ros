@@ -12,8 +12,17 @@ actor = actor_ros.scripting_tools.ActorScriptTools()  # ACTor Scripting Tools in
 # ---------------------------------------------------------------------------------------------------------------------
 
 
-def white_line():
-    return actor.msg_bumper_camera_bumper_line_detected.data
+# def white_line():
+#     return actor.msg_bumper_camera_bumper_line_detected.data
+
+
+# previous_size = 0
+
+
+# def slow_to_sign(speed_max: float = 4.0, distance: int = 70, gain: float = 31):
+#     # min(brake_target, (1 / max(self.lidar_2d() - brake_distance, 0.1)) / 10)
+#     speed = speed_max / max((actor.msg_region_right_closest - distance / gain), 1)
+#     return speed
 
 
 actor.print_title("F3.1 - Lane Keeping")
@@ -29,20 +38,20 @@ actor.drive_for(
     end_function_kwargs={"stop_sign": True, "size": 60},
 )
 
-actor.drive_for(speed=1.0, angle=actor.lane_center, end_function=white_line)
+# actor.drive_for(speed=0.5, angle=actor.lane_center, end_function=white_line)
 
-actor.stop_vehicle(duration=5.0, using_brakes=True, softness=0.5)
+actor.stop_vehicle(duration=3.0, using_brakes=True, softness=0.1, sign_distance=1.6)
 
-actor.print_highlights("Lane keeping until barrel is detected")
+# actor.print_highlights("Lane keeping until barrel is detected")
 
-actor.drive_for(speed=3.0, angle=0.0, speed_distance=8.0)
+# actor.drive_for(speed=3.0, angle=0.0, speed_distance=8.0)
 
-actor.drive_for(
-    speed=3.0, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 3.5}
-)
+# actor.drive_for(
+#     speed=3.0, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 3.0}
+# )
 
-actor.stop_vehicle(duration=5.0, using_brakes=True)
+# actor.stop_vehicle(duration=5.0, using_brakes=True)
 
-actor.print_highlights("F3.1 - Lane Keeping Complete!")
+# actor.print_highlights("F3.1 - Lane Keeping Complete!")
 
 # ---------------------------------------------------------------------------------------------------------------------

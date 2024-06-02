@@ -88,10 +88,20 @@ class ActorScriptTools:
         print(f"{' ' * padding}{title.upper()}{' ' * padding}")
         print("=" * width)
 
-    def stop_vehicle(self, using_brakes: bool = False, duration: float = 3.0, softness : float = 1.5) -> None:
+    def stop_vehicle(
+        self,
+        using_brakes: bool = False,
+        duration: float = 3.0,
+        softness: float = 1.5,
+        brake_distance: float = None,
+        sign_distance: float = None,
+    ) -> None:
         """Stop the vehicle by publishing either a zero twist message or a brake pedal command
         and wait for duration seconds"""
-        from dbw_polaris_msgs.msg import BrakeCmd
+        # from geometry_msgs.msg import Twist  # ROS Messages
+        import math
+
+        from dbw_polaris_msgs.msg import BrakeCmd, SteeringCmd, ThrottleCmd
 
         self.print_highlights(f"Stopping Vehicle for {round(duration, 2)}s...")
         start_time = rospy.Time.now()
@@ -104,14 +114,79 @@ class ActorScriptTools:
             msg.pedal_cmd = 0.0
             msg.enable = True
 
-            # Reach target pedal value by increasing pedal value for duration seconds
-            brake_target = 0.4  # target brake pedal value
-            increment = softness * brake_target / rate_hz  # increment fully in 2 seconds
+            if brake_distance is not None:
+                brake_target = 0.5
 
-            while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
-                msg.pedal_cmd = min(brake_target, msg.pedal_cmd + increment)  # Increase pedal value
-                self.pub_brakes.publish(msg)
-                rate.sleep()
+                msg_steering = SteeringCmd()
+                msg_steering.enable = True  # Enable Steering, required 'True' for control via ROS
+                msg_steering.cmd_type = SteeringCmd.CMD_ANGLE
+                msg_steering.steering_wheel_angle_velocity = math.radians(300)  # deg/s -> rad/s
+                msg_steering.steering_wheel_torque_cmd = 0.0  # Nm
+                msg_steering.clear = False
+                msg_steering.ignore = False
+                msg_steering.calibrate = False
+                msg_steering.quiet = False
+                msg_steering.count = 0
+
+                while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
+                    msg_steering.steering_wheel_angle_cmd = math.radians(self.lane_center())
+                    msg.pedal_cmd = min(brake_target, (1 / max(self.lidar_2d() - brake_distance, 0.1)) / 10)
+                    self.pub_brakes.publish(msg)
+                    self.pub_steering.publish(msg_steering)
+                    rate.sleep()
+
+            elif sign_distance is not None:
+                brake_target = 0.08
+
+                msg_steering = SteeringCmd()
+                msg_steering.enable = True  # Enable Steering, required 'True' for control via ROS
+                msg_steering.cmd_type = SteeringCmd.CMD_ANGLE
+                msg_steering.steering_wheel_angle_velocity = math.radians(300)  # deg/s -> rad/s
+                msg_steering.steering_wheel_torque_cmd = 0.0  # Nm
+                msg_steering.clear = False
+                msg_steering.ignore = False
+                msg_steering.calibrate = False
+                msg_steering.quiet = False
+                msg_steering.count = 0
+
+                msg_throttle = ThrottleCmd()
+                msg_throttle.enable = True
+                msg_throttle.pedal_cmd_type = ThrottleCmd.CMD_PEDAL
+                msg_throttle.pedal_cmd = 0.2
+
+                while not rospy.is_shutdown() and not self.lidar_3d(lidar_zone="right", max_distance=sign_distance):
+                    msg_steering.steering_wheel_angle_cmd = math.radians(self.lane_center())
+                    # msg.pedal_cmd = min(
+                    #     brake_target,
+                    #     (1 / max(self.msg_region_right_closest.data - sign_distance, 0.01)) / 2,
+                    # )
+
+                    self.pub_throttle.publish(msg_throttle)
+
+                    msg.pedal_cmd = brake_target
+                    # self.pub_brakes.publish(msg)
+                    self.pub_steering.publish(msg_steering)
+                    rate.sleep()
+
+                print("Waiting")
+                start_time = rospy.Time.now()
+
+                while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
+                    msg.pedal_cmd = 0.5
+                    self.pub_brakes.publish(msg)
+                    rate.sleep()
+
+                print("done waiting")
+
+            else:
+                # Reach target pedal value by increasing pedal value for duration seconds
+                brake_target = 0.4  # target brake pedal value
+                increment = softness * brake_target / rate_hz  # increment fully in 2 seconds
+
+                while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
+                    msg.pedal_cmd = min(brake_target, msg.pedal_cmd + increment)  # Increase pedal value
+                    self.pub_brakes.publish(msg)
+                    rate.sleep()
 
         else:  # Send zero twist command to twist publisher
             while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
@@ -238,7 +313,7 @@ class ActorScriptTools:
             while not rospy.is_shutdown() and (rospy.Time.now() - start_time < rospy.Duration(duration)):
                 self.drive(speed, speed_kwargs, angle, angle_kwargs)
                 rate.sleep()
-        
+
         elif callable(end_function):  # Use function-based end condition
             while not rospy.is_shutdown() and not end_function(**end_function_kwargs):
                 self.drive(speed, speed_kwargs, angle, angle_kwargs)
@@ -320,15 +395,34 @@ class ActorScriptTools:
         if lidar_zone == "rear":
             within_range = min_distance < self.msg_rear_2d_lidar_closest_object.data < max_distance
 
+        if lidar_zone == "right":
+            within_range = min_distance < self.msg_region_right_closest.data < max_distance
+
         if verbose:
             print(
                 f"T3D Distance: {front_3d_adj:.3f}",
                 f"F2D Distance: {self.msg_front_2d_lidar_closest_object.data:.3f}",
                 f"R2D Distance: {self.msg_rear_2d_lidar_closest_object.data:.3f}",
+                f"R3D Distance: {self.msg_region_right_closest.data:.3f}",
                 f"Within Range: {within_range}",
             )
 
         return within_range
+
+    def lidar_2d(
+        self,
+        lidar_zone: str = "front",
+        min_distance: float = 0.5,
+        max_distance: float = 9.9,
+        verbose: bool = False,
+    ) -> float:
+        """Output lidar distance"""
+
+        if lidar_zone == "front":
+            return self.msg_front_2d_lidar_closest_object.data
+
+        elif lidar_zone == "rear":
+            return self.msg_rear_2d_lidar_closest_object.data
 
     def read_waypoints(self, file_path: str = None, verbose: bool = False) -> list:
         """Reads waypoints from saved YAML file"""

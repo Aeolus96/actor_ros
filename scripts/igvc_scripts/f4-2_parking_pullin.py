@@ -38,32 +38,32 @@ actor.print_title("F4.2 Parking Pull In")
 estop.enable_dbw()  # Enable vehicle control via ROS - one time message
 
 # # Pull Out To Right
-# actor.print_title("F4.1 Parking Pull Out Right")
+actor.print_title("F4.1 Parking Pull Out Right")
 
-# actor.drive_for(speed=1.5, angle=0.0, speed_distance=3.5)
+actor.drive_for(speed=1.5, angle=0.0, speed_distance=3.8)
 
-# actor.drive_for(speed=1.5, angle=-28.0, speed_distance=7.2)
+actor.drive_for(speed=1.5, angle=-30.0, speed_distance=6.0)
 
-# actor.drive_for(speed=1.5, angle=0.0, speed_distance=0.6)
-
-# # actor.drive_for(
-# #     speed=1.5, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 3.0}
-# # )
-
-# actor.stop_vehicle(duration=5.0, using_brakes=True)
-
-# Pull Out To Right
-actor.print_title("F4.1 Parking PullIn Left")
-
-actor.drive_for(speed=1.5, angle=0.0, speed_distance=3.5)
-
-actor.drive_for(speed=1.5, angle=28.0, speed_distance=7.2)
-
-actor.drive_for(speed=1.5, angle=0.0, speed_distance=0.6)
+actor.drive_for(speed=1.5, angle=0.0, speed_distance=0.3)
 
 # actor.drive_for(
 #     speed=1.5, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 3.0}
 # )
 
-actor.stop_vehicle(duration=5.0, using_brakes=True)
+# actor.stop_vehicle(duration=5.0, using_brakes=True)
+
+# Pull Out To Right
+# actor.print_title("F4.1 Parking PullIn Left")
+
+# actor.drive_for(speed=1.5, angle=0.0, speed_distance=3.5)
+
+# actor.drive_for(speed=1.5, angle=28.0, speed_distance=7.2)
+
+# actor.drive_for(speed=1.5, angle=0.0, speed_distance=0.6)
+
+# actor.drive_for(
+#     speed=1.5, angle=actor.lane_center, end_function=actor.lidar_3d, end_function_kwargs={"max_distance": 3.0}
+# )
+
+actor.stop_vehicle(duration=15.0, using_brakes=True, softness=0.1)
 actor.print_highlights("Parking Pull In Complete!")
