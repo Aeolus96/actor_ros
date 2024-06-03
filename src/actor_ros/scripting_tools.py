@@ -41,6 +41,7 @@ class ActorScriptTools:
         # Set Initial waypoint
         self.waypoint = Waypoint(self.status.latitude, self.status.longitude, self.status.heading)
         self.waypoints = None  # List of waypoints
+        self.found_stop_sign = False
 
         # Import IGVC Parameters from YAML file -------------------------------
         self.package_directory = rospkg.RosPack().get_path("actor_ros")
@@ -154,7 +155,7 @@ class ActorScriptTools:
                 # msg_throttle.pedal_cmd_type = ThrottleCmd.CMD_PEDAL
                 # msg_throttle.pedal_cmd = 0.2
 
-                while not rospy.is_shutdown() and not self.lidar_3d(lidar_zone="right", max_distance=sign_distance):
+                while not rospy.is_shutdown() and not self.lidar_3d(lidar_zone="right", max_distance=sign_distance+0.2):
                     msg_steering.steering_wheel_angle_cmd = math.radians(self.lane_center())
                     msg.pedal_cmd = min(
                         brake_target,
@@ -337,6 +338,51 @@ class ActorScriptTools:
             #     pass
             return self.msg_lane_center.data  # raw output from /lane_center topic
 
+    # Use YOLO during waypoints
+    def yolo_waypoints(
+        self,
+        stop_sign: bool = False,
+        tire: bool = False,
+        person: bool = False,
+        pothole: bool = False,
+        size: int = 0.0,
+        goal_waypoint: "Waypoint" = None,
+        radius: float = 3.0,
+    ) -> bool:
+        """Returns True if GPS coordinates are within the specified radius (meters)"""
+        from std_msgs.msg import String
+
+        msg_string = String()
+        if stop_sign:
+            msg_string.data = "stop sign"
+        elif tire:
+            msg_string.data = "tire"
+        elif person:
+            msg_string.data = "person"
+        elif pothole:
+            msg_string.data = "pothole"
+        else:
+            raise ("Not correct object type")
+        self.pub_yolo.publish(msg_string)
+
+        # Check quantity of object found and size of object
+        if stop_sign:
+            check = self.msg_stop_sign_detected.data > 0 and self.msg_stop_sign_size.data > size
+        # elif tire:
+        #     check = self.msg_tire_detected.data > 0 and self.msg_tire_size.data > size
+        # elif person:
+        #     check = self.msg_person_detected.data > 0 and self.msg_person_size.data > size
+        # elif pothole:
+        #     check = self.msg_pothole_detected.data > 0 and self.msg_pothole_size.data > size
+
+        if goal_waypoint is None:
+            print("Please specify a waypoint")
+            return False
+
+        self.update_current_waypoint()  # Update current waypoint position
+        distance = self.waypoint.distance_to(goal_waypoint)
+        return distance < radius or check  # or distance is within radius
+
     def yolo_look_for(
         self,
         stop_sign: bool = False,
@@ -442,7 +488,7 @@ class ActorScriptTools:
 
         return waypoint_list
 
-    def waypoint_in_range(self, goal_waypoint: "Waypoint" = None, radius: float = 3.0) -> bool:
+    def waypoint_in_range(self, goal_waypoint: "Waypoint" = None, radius: float = 3.0, yolo: bool = False) -> bool:
         """Returns True if GPS coordinates are within the specified radius (meters)"""
 
         if goal_waypoint is None:
@@ -451,7 +497,11 @@ class ActorScriptTools:
 
         self.update_current_waypoint()  # Update current waypoint position
         distance = self.waypoint.distance_to(goal_waypoint)
-        return distance < radius  # or distance is within radius
+
+        if yolo:
+            self.found_stop_sign = self.yolo_look_for({"stop_sign": True, "size": 30})
+
+        return distance < radius or self.found_stop_sign  # or distance is within radius
 
     def follow_waypoints(self, radius: float = 1.5, gain: float = 1.0, verbose: bool = False) -> float:
         """Returns the angle needed to follow the waypoint trajectory using a list of Waypoints(class). Make sure the list is a defined object and ordered correctly"""

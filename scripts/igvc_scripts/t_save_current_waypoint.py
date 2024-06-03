@@ -9,7 +9,7 @@ from actor_ros.actor_tools import YAMLReader
 actor = actor_ros.scripting_tools.ActorScriptTools()  # ACTor Scripting Tools instance
 
 # Load waypoints from YAML file
-file_path = "/home/dev/main_6_waypoint.yaml"
+file_path = "/home/dev/m334133_waypoint.yaml"
 yaml_file = YAMLReader(file_path=file_path)
 
 

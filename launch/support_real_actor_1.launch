@@ -76,15 +76,15 @@
 
 
     <!-- USB Camera: - using Simple Camera Publisher .....-->
-    <group ns="bumper_camera">
+    <!-- <group ns="bumper_camera">
         <node name="cam_pub" pkg="simple_camera_publisher" type="cam_pub" respawn="true"
             respawn_delay="10" output="screen">
-            <!-- Use device path from /dev/v4l/by-id/ -->
+             Use device path from /dev/v4l/by-id/
             <param name="source" type="string"
                 value="/dev/v4l/by-id/usb-KYE_Systems_Corp._USB_Camera_200901010001-video-index0" />
         </node>
         <node name="bumper_camera" pkg="actor_bumper_camera" type="bumper_camera.py" />
-    </group>
+    </group> -->
     <!-- .................................................................. -->
 
 
