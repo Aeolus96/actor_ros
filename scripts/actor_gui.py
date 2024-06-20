@@ -245,7 +245,9 @@ with ui.footer(value=True) as footer:
         ui.label("STEERING").classes(footer_label_classes)
         steering_slider = (
             ui.slider(min=-40, max=40, value=-37)
-            .props("readonly selection-color=transparent thumb-color=blue-grey-7 thumb-size=20px track-size=10px")
+            .props(
+                "readonly selection-color=transparent thumb-color=blue-grey-7 thumb-size=20px track-size=10px reverse"
+            )
             .classes("w-full m-auto")
             .bind_value_from(status, "road_angle")
         )
