@@ -2,6 +2,8 @@
 
 This package enables abstraction of the LTU ACTor autonomous development vehicle in ROS; adds a unified status message and control interface for the ACTor vehicle.
 
+<img src="documents/Screenshot.png" alt="GUI Screenshot">
+
 ## Dependencies
 
 - ROS Noetic
