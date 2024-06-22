@@ -26,7 +26,16 @@ actor.drive_for(
     end_function=actor.waypoint_in_range,
     end_function_kwargs={"goal_waypoint": actor.waypoints[-1], "radius": 3.0},
 )
-# actor.drive_for(speed=1.5, angle=0.0, duration=8.0) # debug line to check dbw
+
+# Lane Centering until last waypoint is reached
+# actor.drive_for(
+#     speed=5.0,
+#     angle=actor.lane_center,
+#     angle_kwargs={"blob_gain": 60},
+#     end_function=actor.waypoint_in_range,
+#     end_function_kwargs={"goal_waypoint": actor.waypoints[-1], "radius": 3.0},
+# )
+
 
 actor.stop_vehicle(duration=5.0, using_brakes=True)
 

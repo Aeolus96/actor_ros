@@ -9,7 +9,7 @@ from actor_ros.actor_tools import YAMLReader
 actor = actor_ros.scripting_tools.ActorScriptTools()  # ACTor Scripting Tools instance
 
 # Load waypoints from YAML file
-file_path = "/home/dev/m334133_waypoint.yaml"
+file_path = "/home/dev/waypoint_test.yaml"
 yaml_file = YAMLReader(file_path=file_path)
 
 
@@ -23,8 +23,6 @@ while rospy.Time.now() - start_time < rospy.Duration(10):
         {"long": actor.waypoint.long},
         {"heading": actor.waypoint.heading},
     )
-    # yml.params.update({f"waypoint{num_waypoints}" : actor.waypoint})
-    # yml.params[f'waypoint{num_waypoints}'] = actor.waypoint
     print(actor.waypoint)
     time.sleep(0.2)
 
