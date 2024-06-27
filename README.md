@@ -8,9 +8,11 @@ This package enables abstraction of the LTU ACTor autonomous development vehicle
 
 - ROS Noetic
 - [`dbw_polaris_msgs`](https://bitbucket.org/DataspeedInc/dbw_polaris_ros/src/master/ROS_SETUP.md): ROS messages for controlling a DataSeed Drive-By-Wire system installed in ACTor.
-    > This external package needs to be installed manually
+    > This external package may need to be installed manually IF it does not work.
+    > ONE LINE BINARY INSTALL RECOMMENDED
 - ACTor computer/laptop setup using [ACTOR setup](https://github.com/LTU-Actor/setup.git)
     > Only need if setting up the ACTor computer/laptop for the first time
+- [`ethz_piksi_ros`](https://github.com/ethz-asl/ethz_piksi_ros/tree/master/piksi_multi_cpp): ROS messages for interfacing with the Piksi GNSS receiver. Only required if using the Piksi GNSS receiver. If not, comment out related lines in `CMakeLists.txt` and other files
 
 ## Installation
 

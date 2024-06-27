@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Install base packages
-sudo apt install lsb-release curl gpg
+sudo apt install -y lsb-release curl gpg python3-wstool python3-catkin-tools python-wstool
 
 
 # ----- Install requirements.txt -----
@@ -45,9 +45,9 @@ sudo chmod +x scripts/*.py
 
 
 # ----- Clone repositories and install -----
-
 declare -A repositories=(
     ["../rosboard"]="https://github.com/dheera/rosboard.git"
+    ["../ethz_piksi_ros"]="https://github.com/ethz-asl/ethz_piksi_ros.git"
     # Add more repositories as needed
 )
 
@@ -62,4 +62,27 @@ for repo_dir in "${!repositories[@]}"; do
     fi
 done
 
+
+# ----- Install DataSpeed Drive-By-Wire -----
+bash <(wget -q -O - https://bitbucket.org/DataspeedInc/dbw_polaris_ros/raw/master/dbw_polaris/scripts/sdk_install.bash)
+
+
+# ----- Install Piksi Multi GNSS packages -----
+cd ..
+wstool init
+wstool set --git ethz_piksi_ros https://github.com/ethz-asl/ethz_piksi_ros.git
+wstool update
+
+source /opt/ros/noetic/setup.bash
+./ethz_piksi_ros/piksi_multi_cpp/install/prepare-jenkins-slave.sh
+
+wstool merge ethz_piksi_ros/piksi_multi_cpp/install/dependencies_https.rosinstall
+wstool update -j8
+
+
+# ----- Build workspace -----
+catkin build catkin_simple
+catkin build libsbp_catkin
+catkin build libserialport_catkin
+catkin build ethz_piksi_ros
 catkin build actor_ros rosboard
