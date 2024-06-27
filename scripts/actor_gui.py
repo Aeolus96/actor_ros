@@ -287,7 +287,9 @@ with ui.footer(value=True) as footer:
 
         ui.label("GEAR").classes(footer_label_classes)
         gear_label = ui.label("N").classes("select-none font-bold text-stone-400 text-6xl m-auto")
-        gear_label.bind_text_from(status, "gear", backward=lambda gear: gear[0])  # Gear Initial
+        gear_label.bind_text_from(
+            status, "gear", backward=lambda gear: "N" if gear is None else gear[0]
+        )  # Gear Initial
 
 
 # Floating area -------------------------------------------------------------------------
