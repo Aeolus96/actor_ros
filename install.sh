@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Install base packages
-sudo apt install -y lsb-release curl gpg python3-wstool python3-catkin-tools python-wstool
+sudo apt install -y lsb-release curl gpg python3-wstool python3-catkin-tools
 
 
 # ----- Install requirements.txt -----
@@ -73,7 +73,6 @@ wstool init
 wstool set --git ethz_piksi_ros https://github.com/ethz-asl/ethz_piksi_ros.git
 wstool update
 
-source /opt/ros/noetic/setup.bash
 ./ethz_piksi_ros/piksi_multi_cpp/install/prepare-jenkins-slave.sh
 
 wstool merge ethz_piksi_ros/piksi_multi_cpp/install/dependencies_https.rosinstall
@@ -82,7 +81,11 @@ wstool update -j8
 
 # ----- Build workspace -----
 catkin build catkin_simple
-catkin build libsbp_catkin
+catkin build libsbp_catkin libsbp_ros_msgs
 catkin build libserialport_catkin
 catkin build ethz_piksi_ros
 catkin build actor_ros rosboard
+
+
+# ----- Skiplist packages -----
+catkin config --skiplist catkin_simple libsbp_catkin libsbp_ros_msgs libserialport_catkin ethz_piksi_ros rosboard
